@@ -58,7 +58,7 @@ class TokenService
         return RefreshToken::create([
             'user_id' => $userId,
             'token' => Str::random(64),
-            'expires_at' => now()->addDays(config('auth.refresh_token_expires_days', 30)),
+            'expires_at' => now()->addDays((int) config('auth.refresh_token_expires_days', 30)), // ✅ Cast to int
             'device_name' => $deviceName,
             'ip_address' => $ipAddress,
             'user_agent' => $userAgent,

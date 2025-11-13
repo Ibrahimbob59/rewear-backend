@@ -58,7 +58,7 @@ class EmailVerification extends Model
      */
     public function maxAttemptsReached(): bool
     {
-        return $this->attempts >= config('auth.verification.max_attempts', 5);
+        return $this->attempts >= config('auth.email_verification.max_attempts', 5);
     }
 
     /**
