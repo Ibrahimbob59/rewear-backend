@@ -1,0 +1,1033 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "ReWear API Documentation",
+        "description": "ReWear - Sustainable Fashion Marketplace API\n *\n * **Mission:** Making fashion sustainable and accessible\n *\n * **Tagline:** Buy, Sell, Donate\n *\n * ## Features\n * - 🛍️ **Marketplace:** Buy and sell pre-loved clothing\n * - 💚 **Donations:** Donate items to verified charities\n * - 🚚 **Delivery:** Local driver network\n * - 🌍 **Impact:** Track environmental and social impact\n *\n * ## Authentication\n * All protected endpoints require a JWT Bearer token in the Authorization header:\n * ```\n * Authorization: Bearer YOUR_JWT_TOKEN\n * ```\n *\n * ## Rate Limiting\n * - **Registration OTP:** 5 requests per email per hour, 5 per IP per hour\n * - **Login:** Standard Laravel rate limiting\n * - **API Calls:** 60 requests per minute\n *\n * ## User Roles\n * - **user:** Regular buyer/seller (default)\n * - **charity:** Organization receiving donations (admin-created)\n * - **driver:** Verified delivery personnel (admin-approved)\n * - **admin:** Platform administrator\n *\n * ## Support\n * - **Email:** support@rewear.com\n * - **Phone:** +961 70 123456\n * ",
+        "contact": {
+            "name": "ReWear Support Team",
+            "email": "support@rewear.com"
+        },
+        "license": {
+            "name": "MIT",
+            "url": "https://opensource.org/licenses/MIT"
+        },
+        "version": "1.0.0"
+    },
+    "servers": [
+        {
+            "url": "http://localhost:8000",
+            "description": "Local Development Server"
+        },
+        {
+            "url": "https://api.rewear.com",
+            "description": "Production Server"
+        },
+        {
+            "url": "/api"
+        }
+    ],
+    "paths": {
+        "/api/admin/charity/create": {
+            "post": {
+                "tags": [
+                    "Admin - Charity Management"
+                ],
+                "summary": "Create a charity account (Admin only)",
+                "description": "Create a charity account (Admin only)",
+                "operationId": "fa5afa17f79fcabbdd539c948a1e8070",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "organization_name",
+                                    "email",
+                                    "phone"
+                                ],
+                                "properties": {
+                                    "organization_name": {
+                                        "type": "string",
+                                        "example": "Hope Foundation"
+                                    },
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "contact@hopefoundation.org"
+                                    },
+                                    "phone": {
+                                        "type": "string",
+                                        "example": "+96170123456"
+                                    },
+                                    "organization_description": {
+                                        "type": "string",
+                                        "example": "Supporting underprivileged communities"
+                                    },
+                                    "registration_number": {
+                                        "type": "string",
+                                        "example": "REG-2024-001"
+                                    },
+                                    "tax_id": {
+                                        "type": "string",
+                                        "example": "TAX-123456"
+                                    },
+                                    "address": {
+                                        "type": "string",
+                                        "example": "123 Main St"
+                                    },
+                                    "city": {
+                                        "type": "string",
+                                        "example": "Beirut"
+                                    },
+                                    "country": {
+                                        "type": "string",
+                                        "example": "Lebanon"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Charity created successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Charity account created successfully. Credentials sent to email."
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer",
+                                                    "example": 10
+                                                },
+                                                "organization_name": {
+                                                    "type": "string",
+                                                    "example": "Hope Foundation"
+                                                },
+                                                "email": {
+                                                    "type": "string",
+                                                    "example": "contact@hopefoundation.org"
+                                                },
+                                                "user_type": {
+                                                    "type": "string",
+                                                    "example": "charity"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - Not an admin"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/admin/charities": {
+            "get": {
+                "tags": [
+                    "Admin - Charity Management"
+                ],
+                "summary": "Get all charity accounts (Admin only)",
+                "description": "Get all charities (Admin only)",
+                "operationId": "ad384251b5a10ef50eb022fbd003255c",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "Page number",
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Charities retrieved successfully"
+                    },
+                    "403": {
+                        "description": "Forbidden - Not an admin"
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/admin/stats": {
+            "get": {
+                "tags": [
+                    "Admin - Analytics"
+                ],
+                "summary": "Get platform statistics (Admin only)",
+                "description": "Get platform statistics (Admin only)",
+                "operationId": "30c2dad37f3f48c93b37aed0e09c837b",
+                "responses": {
+                    "200": {
+                        "description": "Statistics retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "total_users": {
+                                                    "type": "integer",
+                                                    "example": 1250
+                                                },
+                                                "total_charities": {
+                                                    "type": "integer",
+                                                    "example": 15
+                                                },
+                                                "total_drivers": {
+                                                    "type": "integer",
+                                                    "example": 50
+                                                },
+                                                "verified_drivers": {
+                                                    "type": "integer",
+                                                    "example": 42
+                                                },
+                                                "active_users": {
+                                                    "type": "integer",
+                                                    "example": 1180
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - Not an admin"
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/auth/login": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Login with email and password",
+                "description": "Login with email and password",
+                "operationId": "7b9026fc5982d72a0a0978e3c868fc33",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "email",
+                                    "password"
+                                ],
+                                "properties": {
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "user@example.com"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "SecurePassword123!"
+                                    },
+                                    "device_name": {
+                                        "type": "string",
+                                        "example": "iPhone 13"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Login successful"
+                    },
+                    "401": {
+                        "description": "Invalid credentials or account locked"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                }
+            }
+        },
+        "/api/auth/login-code": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Request verification code for login (optional)",
+                "description": "Request login verification code (optional OTP for login)",
+                "operationId": "44e019ea8c232dde06167e3c169ede52",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "email"
+                                ],
+                                "properties": {
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "user@example.com"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Verification code sent"
+                    },
+                    "404": {
+                        "description": "User not found"
+                    },
+                    "429": {
+                        "description": "Too many requests"
+                    }
+                }
+            }
+        },
+        "/api/auth/me": {
+            "get": {
+                "tags": [
+                    "Profile"
+                ],
+                "summary": "Get current user profile",
+                "description": "Get current authenticated user",
+                "operationId": "260b31ba54def17299a60027263986d4",
+                "responses": {
+                    "200": {
+                        "description": "Profile retrieved successfully"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/auth/profile": {
+            "put": {
+                "tags": [
+                    "Profile"
+                ],
+                "summary": "Update user profile",
+                "description": "Update user profile",
+                "operationId": "bf5db0ea9448d0bb2797e1c1560daf01",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "full_name": {
+                                        "type": "string",
+                                        "example": "John Doe"
+                                    },
+                                    "phone": {
+                                        "type": "string",
+                                        "example": "+96170123456"
+                                    },
+                                    "bio": {
+                                        "type": "string",
+                                        "example": "Fashion enthusiast"
+                                    },
+                                    "city": {
+                                        "type": "string",
+                                        "example": "Beirut"
+                                    },
+                                    "location_lat": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 33.8886
+                                    },
+                                    "location_lng": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 35.4955
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Profile updated successfully"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/auth/password": {
+            "put": {
+                "tags": [
+                    "Profile"
+                ],
+                "summary": "Change user password",
+                "description": "Change password",
+                "operationId": "1f548e87771d4850558c7c6eb001b5b2",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "old_password",
+                                    "new_password"
+                                ],
+                                "properties": {
+                                    "old_password": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "OldPassword123!"
+                                    },
+                                    "new_password": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "NewPassword456!"
+                                    },
+                                    "new_password_confirmation": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "NewPassword456!"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Password changed successfully"
+                    },
+                    "422": {
+                        "description": "Validation error or incorrect old password"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/auth/register-code": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Request email verification code for registration",
+                "description": "Step 1: Request verification code for registration",
+                "operationId": "adc3f66ec2bd7c788b18323078637c88",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "email"
+                                ],
+                                "properties": {
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "user@example.com"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Verification code sent"
+                    },
+                    "422": {
+                        "description": "Email already exists"
+                    },
+                    "429": {
+                        "description": "Too many requests"
+                    }
+                }
+            }
+        },
+        "/api/auth/register": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Register a new user",
+                "description": "Step 2: Register new user with verification code",
+                "operationId": "e21b8a4b1ab50f18b1b4b84cf83daf8f",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "email",
+                                    "password",
+                                    "full_name",
+                                    "phone",
+                                    "code"
+                                ],
+                                "properties": {
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "user@example.com"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "SecurePassword123!"
+                                    },
+                                    "full_name": {
+                                        "type": "string",
+                                        "example": "John Doe"
+                                    },
+                                    "phone": {
+                                        "type": "string",
+                                        "example": "+96170123456"
+                                    },
+                                    "code": {
+                                        "type": "string",
+                                        "example": "123456"
+                                    },
+                                    "device_name": {
+                                        "type": "string",
+                                        "example": "iPhone 13"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "User registered successfully"
+                    },
+                    "400": {
+                        "description": "Invalid verification code"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                }
+            }
+        },
+        "/api/auth/resend-code": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Resend verification code",
+                "description": "Resend verification code",
+                "operationId": "52ab14d659d58fb8abe072e370d68751",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "email"
+                                ],
+                                "properties": {
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "user@example.com"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Code resent successfully"
+                    },
+                    "429": {
+                        "description": "Too many requests"
+                    }
+                }
+            }
+        },
+        "/api/auth/refresh-token": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Refresh access token",
+                "description": "Refresh access token using refresh token",
+                "operationId": "6c58dfc55f9dedcdba92125730675c22",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "refresh_token"
+                                ],
+                                "properties": {
+                                    "refresh_token": {
+                                        "type": "string",
+                                        "example": "abc123..."
+                                    },
+                                    "rotate": {
+                                        "description": "Whether to rotate refresh token",
+                                        "type": "boolean",
+                                        "example": false
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Token refreshed successfully"
+                    },
+                    "401": {
+                        "description": "Invalid or expired refresh token"
+                    }
+                }
+            }
+        },
+        "/api/auth/validate": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Validate JWT token",
+                "description": "Validate JWT access token",
+                "operationId": "05d0f42af604c105f19db78cfe36eecd",
+                "responses": {
+                    "200": {
+                        "description": "Token is valid"
+                    },
+                    "401": {
+                        "description": "Token is invalid or expired"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/auth/logout": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Logout from current device",
+                "description": "Logout from current device (revoke refresh token)",
+                "operationId": "3349894bd6fbca13950dce2d17e1791f",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "refresh_token"
+                                ],
+                                "properties": {
+                                    "refresh_token": {
+                                        "type": "string",
+                                        "example": "abc123..."
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Logged out successfully"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/auth/logout-all": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Logout from all devices",
+                "description": "Logout from all devices (revoke all refresh tokens)",
+                "operationId": "400eb29db9267b1f1f7685f7a84a5566",
+                "responses": {
+                    "200": {
+                        "description": "Logged out from all devices"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/auth/sessions": {
+            "get": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Get all active sessions",
+                "description": "Get all active sessions (devices)",
+                "operationId": "b476b67c08fcfc7de341986d5d82f798",
+                "responses": {
+                    "200": {
+                        "description": "Sessions retrieved successfully"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/auth/token-stats": {
+            "get": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Get token statistics",
+                "description": "Get token statistics for current user",
+                "operationId": "aeccb290612fa96f1ef2d900e418471b",
+                "responses": {
+                    "200": {
+                        "description": "Statistics retrieved successfully"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/user/delete-account": {
+            "delete": {
+                "tags": [
+                    "User Management"
+                ],
+                "summary": "Delete own account",
+                "description": "Delete the authenticated user's own account",
+                "operationId": "3da81b2bccb0536590d1fe0354a9dd2c",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "password"
+                                ],
+                                "properties": {
+                                    "password": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "MyPassword123!"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Account deleted successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Your account has been permanently deleted."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid password"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/admin/users/{userId}": {
+            "delete": {
+                "tags": [
+                    "Admin - User Management"
+                ],
+                "summary": "Delete any user (Admin only)",
+                "description": "Admin delete any user account",
+                "operationId": "13884ba99396773eca983d62d85e5186",
+                "parameters": [
+                    {
+                        "name": "userId",
+                        "in": "path",
+                        "description": "ID of the user to delete",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 5
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "reason": {
+                                        "type": "string",
+                                        "example": "Violated terms of service"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "User deleted successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "User account deleted successfully."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - Not an admin"
+                    },
+                    "404": {
+                        "description": "User not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/admin/users": {
+            "get": {
+                "tags": [
+                    "Admin - User Management"
+                ],
+                "summary": "Get all users (Admin only)",
+                "description": "Get list of all users (Admin only)",
+                "operationId": "b6e3df43263097b3605a503254c40efc",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "Page number",
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "Items per page",
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    },
+                    {
+                        "name": "user_type",
+                        "in": "query",
+                        "description": "Filter by user type",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "user",
+                                "charity"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Users list retrieved successfully"
+                    },
+                    "403": {
+                        "description": "Forbidden - Not an admin"
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        }
+    },
+    "components": {
+        "securitySchemes": {
+            "bearer": {
+                "type": "http",
+                "description": "Enter JWT token in format: Bearer {token}",
+                "name": "Authorization",
+                "in": "header",
+                "scheme": "bearer",
+                "bearerFormat": "JWT"
+            }
+        }
+    },
+    "tags": [
+        {
+            "name": "Authentication",
+            "description": "User registration, login, and authentication management"
+        },
+        {
+            "name": "Profile",
+            "description": "User profile and account management"
+        },
+        {
+            "name": "User Management",
+            "description": "User account deletion and management"
+        },
+        {
+            "name": "Admin - User Management",
+            "description": "Admin user management operations"
+        },
+        {
+            "name": "Admin - Charity Management",
+            "description": "Admin charity account management"
+        },
+        {
+            "name": "Admin - Analytics",
+            "description": "Platform statistics and analytics"
+        }
+    ],
+    "security": [
+        {
+            "bearer": []
+        }
+    ]
+}

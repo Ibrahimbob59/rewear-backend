@@ -1,77 +1,89 @@
 <?php
 
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Auth\RegisterController;
-use App\Http\Controllers\Auth\LoginController;
-use App\Http\Controllers\Auth\TokenController;
-use App\Http\Controllers\Auth\ProfileController;
+use App\Http\Controllers\Api\Auth\RegisterController;
+use App\Http\Controllers\Api\Auth\LoginController;
+use App\Http\Controllers\Api\Auth\TokenController;
+use App\Http\Controllers\Api\Auth\ProfileController;
+use App\Http\Controllers\Api\UserManagementController;
+use App\Http\Controllers\Admin\AdminController;
 
 /*
 |--------------------------------------------------------------------------
 | API Routes
 |--------------------------------------------------------------------------
+|
+| Here is where you can register API routes for your application. These
+| routes are loaded by the RouteServiceProvider and all of them will
+| be assigned to the "api" middleware group. Make something great!
+|
 */
 
-// Health check
-Route::get('/health', function () {
-    return response()->json([
-        'status' => 'ok',
-        'message' => 'ReWear API is running',
-        'timestamp' => now()->toISOString(),
-    ]);
-})->name('health');
-
-// Public routes (no authentication required)
+// Public Routes (No Authentication Required)
 Route::prefix('auth')->group(function () {
+    // Registration
+    Route::post('/register-code', [RegisterController::class, 'sendCode']);
+    Route::post('/register', [RegisterController::class, 'register']);
+    Route::post('/resend-code', [RegisterController::class, 'resendCode']);
 
-    // Registration Flow
-    Route::post('/register-code', [RegisterController::class, 'requestCode'])
-        ->name('auth.register.code');
-
-    Route::post('/register', [RegisterController::class, 'register'])
-        ->name('auth.register');
-
-    Route::post('/resend-code', [RegisterController::class, 'resendCode'])
-        ->name('auth.resend.code');
-
-    // Login Flow
-    Route::post('/login', [LoginController::class, 'login'])
-        ->name('auth.login');
-
-    Route::post('/login-code', [LoginController::class, 'requestCode'])
-        ->name('auth.login.code');
+    // Login
+    Route::post('/login', [LoginController::class, 'login']);
+    Route::post('/login-code', [LoginController::class, 'sendLoginCode']);
 
     // Token Management (Public)
-    Route::post('/refresh-token', [TokenController::class, 'refresh'])
-        ->name('auth.refresh');
-
-    Route::post('/validate', [TokenController::class, 'validateToken'])
-        ->name('auth.validate');
+    Route::post('/refresh-token', [TokenController::class, 'refreshToken']);
+    Route::post('/validate', [TokenController::class, 'validateToken']);
 });
 
-// Protected routes (authentication required)
-Route::middleware('auth:api')->prefix('auth')->group(function () {
+// Protected Routes (Authentication Required)
+Route::middleware('auth:api')->group(function () {
 
     // Profile Management
-    Route::get('/me', [ProfileController::class, 'me'])
-        ->name('auth.me');
+    Route::prefix('auth')->group(function () {
+        Route::get('/me', [ProfileController::class, 'me']);
+        Route::put('/profile', [ProfileController::class, 'updateProfile']);
+        Route::put('/password', [ProfileController::class, 'changePassword']);
 
-    Route::put('/profile', [ProfileController::class, 'update'])
-        ->name('auth.profile.update');
+        // Logout
+        Route::post('/logout', [TokenController::class, 'logout']);
+        Route::post('/logout-all', [TokenController::class, 'logoutAll']);
 
-    Route::put('/password', [ProfileController::class, 'changePassword'])
-        ->name('auth.password.change');
+        // Sessions
+        Route::get('/sessions', [TokenController::class, 'getSessions']);
+    });
 
-    // Token Management (Protected)
-    Route::post('/logout', [TokenController::class, 'logout'])
-        ->name('auth.logout');
+    // User Management (Self)
+    Route::prefix('user')->group(function () {
+        Route::delete('/delete-account', [UserManagementController::class, 'deleteSelfAccount']);
+    });
 
-    Route::post('/logout-all', [TokenController::class, 'logoutAll'])
-        ->name('auth.logout.all');
+    // Admin Routes (Requires Admin Role)
+    Route::middleware('admin')->prefix('admin')->group(function () {
 
-    Route::get('/sessions', [TokenController::class, 'sessions'])
-        ->name('auth.sessions');
+        // User Management (Admin)
+        Route::prefix('users')->group(function () {
+            Route::get('/', [UserManagementController::class, 'getAllUsers']);
+            Route::delete('/{userId}', [UserManagementController::class, 'deleteUserByAdmin']);
+        });
 
-    Route::get('/token-stats', [TokenController::class, 'stats'])
-        ->name('auth.token.stats');
+        // Charity Management
+        Route::prefix('charity')->group(function () {
+            Route::post('/create', [AdminController::class, 'createCharity']);
+        });
+
+        Route::get('/charities', [AdminController::class, 'getCharities']);
+
+        // Analytics & Statistics
+        Route::get('/stats', [AdminController::class, 'getStats']);
+    });
+});
+
+// Health Check Route (Useful for monitoring)
+Route::get('/health', function () {
+    return response()->json([
+        'success' => true,
+        'message' => 'ReWear API is running',
+        'timestamp' => now()->toIso8601String(),
+    ]);
 });

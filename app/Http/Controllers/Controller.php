@@ -6,6 +6,101 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Foundation\Validation\ValidatesRequests;
 use Illuminate\Routing\Controller as BaseController;
 
+/**
+ * @OA\Info(
+ *     title="ReWear API Documentation",
+ *     version="1.0.0",
+ *     description="ReWear - Sustainable Fashion Marketplace API
+ *
+ * **Mission:** Making fashion sustainable and accessible
+ *
+ * **Tagline:** Buy, Sell, Donate
+ *
+ * ## Features
+ * - 🛍️ **Marketplace:** Buy and sell pre-loved clothing
+ * - 💚 **Donations:** Donate items to verified charities
+ * - 🚚 **Delivery:** Local driver network
+ * - 🌍 **Impact:** Track environmental and social impact
+ *
+ * ## Authentication
+ * All protected endpoints require a JWT Bearer token in the Authorization header:
+ * ```
+ * Authorization: Bearer YOUR_JWT_TOKEN
+ * ```
+ *
+ * ## Rate Limiting
+ * - **Registration OTP:** 5 requests per email per hour, 5 per IP per hour
+ * - **Login:** Standard Laravel rate limiting
+ * - **API Calls:** 60 requests per minute
+ *
+ * ## User Roles
+ * - **user:** Regular buyer/seller (default)
+ * - **charity:** Organization receiving donations (admin-created)
+ * - **driver:** Verified delivery personnel (admin-approved)
+ * - **admin:** Platform administrator
+ *
+ * ## Support
+ * - **Email:** support@rewear.com
+ * - **Phone:** +961 70 123456
+ * ",
+ *     @OA\Contact(
+ *         email="support@rewear.com",
+ *         name="ReWear Support Team"
+ *     ),
+ *     @OA\License(
+ *         name="MIT",
+ *         url="https://opensource.org/licenses/MIT"
+ *     )
+ * )
+ *
+ * @OA\Server(
+ *     url="http://localhost:8000",
+ *     description="Local Development Server"
+ * )
+ *
+ * @OA\Server(
+ *     url="https://api.rewear.com",
+ *     description="Production Server"
+ * )
+ *
+ * @OA\SecurityScheme(
+ *     type="http",
+ *     securityScheme="bearer",
+ *     scheme="bearer",
+ *     bearerFormat="JWT",
+ *     description="Enter your JWT token in the format: Bearer {token}"
+ * )
+ *
+ * @OA\Tag(
+ *     name="Authentication",
+ *     description="User registration, login, and authentication management"
+ * )
+ *
+ * @OA\Tag(
+ *     name="Profile",
+ *     description="User profile and account management"
+ * )
+ *
+ * @OA\Tag(
+ *     name="User Management",
+ *     description="User account deletion and management"
+ * )
+ *
+ * @OA\Tag(
+ *     name="Admin - User Management",
+ *     description="Admin user management operations"
+ * )
+ *
+ * @OA\Tag(
+ *     name="Admin - Charity Management",
+ *     description="Admin charity account management"
+ * )
+ *
+ * @OA\Tag(
+ *     name="Admin - Analytics",
+ *     description="Platform statistics and analytics"
+ * )
+ */
 class Controller extends BaseController
 {
     use AuthorizesRequests, ValidatesRequests;
