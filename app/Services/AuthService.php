@@ -80,11 +80,10 @@ class AuthService
             $user = User::create([
                 'email' => $data['email'],
                 'password' => Hash::make($data['password']),
-                'full_name' => $data['full_name'],
+                'name' => $data['name'],
                 'phone' => $data['phone'],
                 'user_type' => 'user', // Default type
                 'email_verified_at' => now(), // Mark as verified since they verified the code
-                'email_verified' => true,
             ]);
 
             // Mark verification code as used
@@ -183,46 +182,6 @@ class AuthService
     }
 
     /**
-     * Send login verification code (optional - if you want OTP for login too)
-     *
-     * @param string $email
-     * @return array
-     * @throws ValidationException
-     * @throws TooManyRequestsHttpException
-     */
-    public function sendLoginCode(string $email): array
-    {
-        // Check if user exists
-        $user = User::where('email', $email)->first();
-
-        if (!$user) {
-            throw ValidationException::withMessages([
-                'email' => ['No account found with this email address.']
-            ]);
-        }
-
-        // Check if account is locked
-        if ($user->isLocked()) {
-            throw new UnauthorizedHttpException(
-                'Bearer',
-                'Account is locked. Please try again later.'
-            );
-        }
-
-        // Check rate limiting
-        $this->emailVerificationService->checkRateLimit($email);
-
-        // Generate and send verification code
-        $verification = $this->emailVerificationService->generate($email);
-        $this->emailVerificationService->sendVerificationEmail($email, $verification->code, 'login');
-
-        return [
-            'message' => 'Verification code sent to your email.',
-            'expires_at' => $verification->expires_at->toISOString(),
-        ];
-    }
-
-    /**
      * Update user profile
      *
      * @param User $user
@@ -233,8 +192,8 @@ class AuthService
     {
         $updateData = [];
 
-        if (isset($data['full_name'])) {
-            $updateData['full_name'] = $data['full_name'];
+        if (isset($data['name'])) {
+            $updateData['name'] = $data['name'];
         }
 
         if (isset($data['phone'])) {
@@ -249,9 +208,12 @@ class AuthService
             $updateData['city'] = $data['city'];
         }
 
-        if (isset($data['location_lat']) && isset($data['location_lng'])) {
-            $updateData['location_lat'] = $data['location_lat'];
-            $updateData['location_lng'] = $data['location_lng'];
+        if (isset($data['latitude'])) {
+            $updateData['latitude'] = $data['latitude'];
+        }
+
+        if (isset($data['longitude'])) {
+            $updateData['longitude'] = $data['longitude'];
         }
 
         $user->update($updateData);
@@ -326,7 +288,7 @@ class AuthService
         return [
             'id' => $user->id,
             'email' => $user->email,
-            'full_name' => $user->full_name,
+            'name' => $user->name,
             'phone' => $user->phone,
             'user_type' => $user->user_type,
             'profile_picture' => $user->profile_picture,

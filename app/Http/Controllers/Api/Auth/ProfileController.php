@@ -24,7 +24,7 @@ class ProfileController extends Controller
      *
      * @OA\Get(
      *     path="/api/auth/me",
-     *     tags={"Profile"},
+     *     tags={"User Management"},
      *     summary="Get current user profile",
      *     security={{"bearerAuth": {}}},
      *     @OA\Response(response=200, description="Profile retrieved successfully"),
@@ -43,17 +43,16 @@ class ProfileController extends Controller
                     'user' => [
                         'id' => $user->id,
                         'email' => $user->email,
-                        'full_name' => $user->full_name,
+                        'name' => $user->name,
                         'phone' => $user->phone,
                         'user_type' => $user->user_type,
                         'profile_picture' => $user->profile_picture,
                         'bio' => $user->bio,
                         'city' => $user->city,
-                        'location_lat' => $user->location_lat,
-                        'location_lng' => $user->location_lng,
+                        'latitude' => $user->latitude,
+                        'longitude' => $user->longitude,
                         'is_driver' => $user->is_driver,
                         'driver_verified' => $user->driver_verified,
-                        'driver_vehicle_type' => $user->driver_vehicle_type,
                         'email_verified' => $user->hasVerifiedEmail(),
                         'email_verified_at' => $user->email_verified_at?->toISOString(),
                         'last_login_at' => $user->last_login_at?->toISOString(),
@@ -63,10 +62,16 @@ class ProfileController extends Controller
                 ],
             ]);
         } catch (\Exception $e) {
+            \Log::error('Failed to retrieve profile', [
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to retrieve profile',
-                'error' => config('app.debug') ? $e->getMessage() : null,
+                'message' => 'Failed to retrieve your profile. Please try again later.',
+                'error' => config('app.debug') ? $e->getMessage() : 'An unexpected error occurred while fetching your profile data.',
             ], 500);
         }
     }
@@ -76,18 +81,18 @@ class ProfileController extends Controller
      *
      * @OA\Put(
      *     path="/api/auth/profile",
-     *     tags={"Profile"},
+     *     tags={"User Management"},
      *     summary="Update user profile",
      *     security={{"bearerAuth": {}}},
      *     @OA\RequestBody(
      *         required=true,
      *         @OA\JsonContent(
-     *             @OA\Property(property="full_name", type="string", example="John Doe"),
+     *             @OA\Property(property="name", type="string", example="John Doe"),
      *             @OA\Property(property="phone", type="string", example="+96170123456"),
      *             @OA\Property(property="bio", type="string", example="Fashion enthusiast"),
      *             @OA\Property(property="city", type="string", example="Beirut"),
-     *             @OA\Property(property="location_lat", type="number", format="float", example=33.8886),
-     *             @OA\Property(property="location_lng", type="number", format="float", example=35.4955)
+     *             @OA\Property(property="latitude", type="number", format="float", example=33.8886),
+     *             @OA\Property(property="longitude", type="number", format="float", example=35.4955)
      *         )
      *     ),
      *     @OA\Response(response=200, description="Profile updated successfully"),
@@ -95,7 +100,7 @@ class ProfileController extends Controller
      *     @OA\Response(response=401, description="Unauthorized")
      * )
      */
-    public function update(UpdateProfileRequest $request): JsonResponse
+    public function updateProfile(UpdateProfileRequest $request): JsonResponse
     {
         try {
             $user = $request->user();
@@ -116,10 +121,16 @@ class ProfileController extends Controller
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
+            \Log::error('Failed to update profile', [
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to update profile',
-                'error' => config('app.debug') ? $e->getMessage() : null,
+                'message' => 'Failed to update your profile. Please try again later.',
+                'error' => config('app.debug') ? $e->getMessage() : 'An unexpected error occurred while updating your profile.',
             ], 500);
         }
     }
@@ -129,7 +140,7 @@ class ProfileController extends Controller
      *
      * @OA\Put(
      *     path="/api/auth/password",
-     *     tags={"Profile"},
+     *     tags={"User Management"},
      *     summary="Change user password",
      *     security={{"bearerAuth": {}}},
      *     @OA\RequestBody(
@@ -168,10 +179,16 @@ class ProfileController extends Controller
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
+            \Log::error('Failed to change password', [
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to change password',
-                'error' => config('app.debug') ? $e->getMessage() : null,
+                'message' => 'Failed to change your password. Please try again later.',
+                'error' => config('app.debug') ? $e->getMessage() : 'An unexpected error occurred while changing your password.',
             ], 500);
         }
     }

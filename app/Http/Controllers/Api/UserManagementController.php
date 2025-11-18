@@ -18,7 +18,7 @@ class UserManagementController extends Controller
      *     path="/api/user/delete-account",
      *     summary="Delete own account",
      *     tags={"User Management"},
-     *     security={{"bearer": {}}},
+     *     security={{"bearerAuth": {}}},
      *     @OA\RequestBody(
      *         required=true,
      *         @OA\JsonContent(
@@ -73,8 +73,7 @@ class UserManagementController extends Controller
             $deletedUserEmail = $user->email;
             $deletedUserType = $user->user_type;
 
-            // Revoke all tokens
-            $user->tokens()->delete();
+            // Revoke all JWT refresh tokens
             $user->refreshTokens()->delete();
 
             // Delete the user (cascade will handle related records)
@@ -111,6 +110,7 @@ class UserManagementController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Account deletion failed. Please try again later.',
+                'error' => config('app.debug') ? $e->getMessage() : 'An unexpected error occurred while deleting your account. If this persists, please contact support.',
             ], 500);
         }
     }
@@ -121,8 +121,8 @@ class UserManagementController extends Controller
      * @OA\Delete(
      *     path="/api/admin/users/{userId}",
      *     summary="Delete any user (Admin only)",
-     *     tags={"Admin - User Management"},
-     *     security={{"bearer": {}}},
+     *     tags={"Admin Management"},
+     *     security={{"bearerAuth": {}}},
      *     @OA\Parameter(
      *         name="userId",
      *         in="path",
@@ -214,8 +214,7 @@ class UserManagementController extends Controller
             $deletedUserName = $user->name;
             $deletedUserType = $user->user_type;
 
-            // Revoke all tokens
-            $user->tokens()->delete();
+            // Revoke all JWT refresh tokens
             $user->refreshTokens()->delete();
 
             // Delete the user
@@ -254,6 +253,7 @@ class UserManagementController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'User deletion failed. Please try again later.',
+                'error' => config('app.debug') ? $e->getMessage() : 'An unexpected error occurred while deleting the user account.',
             ], 500);
         }
     }
@@ -264,8 +264,8 @@ class UserManagementController extends Controller
      * @OA\Get(
      *     path="/api/admin/users",
      *     summary="Get all users (Admin only)",
-     *     tags={"Admin - User Management"},
-     *     security={{"bearer": {}}},
+     *     tags={"Admin Management"},
+     *     security={{"bearerAuth": {}}},
      *     @OA\Parameter(
      *         name="page",
      *         in="query",
@@ -323,7 +323,8 @@ class UserManagementController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to retrieve users list.',
+                'message' => 'Failed to retrieve users list. Please try again later.',
+                'error' => config('app.debug') ? $e->getMessage() : 'An unexpected error occurred while fetching the users list.',
             ], 500);
         }
     }

@@ -15,11 +15,16 @@ class EmailVerification extends Model
      * @var array<int, string>
      */
     protected $fillable = [
+        'user_id',
         'email',
         'code',
-        'expires_at',
+        'purpose',
         'attempts',
+        'verified',
+        'expires_at',
         'verified_at',
+        'ip_address',
+        'user_agent',
     ];
 
     /**

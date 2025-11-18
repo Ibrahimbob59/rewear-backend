@@ -31,7 +31,7 @@ class CharityCredentialsMail extends Mailable
         return $this->subject('Welcome to ReWear - Your Charity Account Credentials')
             ->view('emails.charity-credentials')
             ->with([
-                'organizationName' => $this->charity->full_name,
+                'organizationName' => $this->charity->organization_name ?? $this->charity->name,
                 'email' => $this->charity->email,
                 'password' => $this->password,
             ]);

@@ -19,8 +19,8 @@ class AdminController extends Controller
      * @OA\Post(
      *     path="/api/admin/charity/create",
      *     summary="Create a charity account (Admin only)",
-     *     tags={"Admin - Charity Management"},
-     *     security={{"bearer": {}}},
+     *     tags={"Admin Management"},
+     *     security={{"bearerAuth": {}}},
      *     @OA\RequestBody(
      *         required=true,
      *         @OA\JsonContent(
@@ -71,7 +71,7 @@ class AdminController extends Controller
             $validated = $request->validate([
                 'organization_name' => 'required|string|max:255',
                 'email' => 'required|email|unique:users,email|max:255',
-                'phone' => 'required|string|max:20',
+                'phone' => 'required|string|unique:users,phone|max:20',
                 'organization_description' => 'nullable|string|max:1000',
                 'registration_number' => 'nullable|string|max:100',
                 'tax_id' => 'nullable|string|max:100',
@@ -114,12 +114,12 @@ class AdminController extends Controller
             // Send credentials email
             try {
                 Mail::send('emails.charity_credentials', [
-                    'charity' => $charity,
+                    'organizationName' => $charity->organization_name,
+                    'email' => $charity->email,
                     'password' => $randomPassword,
-                    'admin_name' => $admin->name,
                 ], function ($message) use ($charity) {
                     $message->to($charity->email)
-                            ->subject('ReWear - Your Charity Account Credentials');
+                        ->subject('ReWear - Your Charity Account Credentials');
                 });
 
                 Log::info('Charity credentials email sent', [
@@ -166,6 +166,7 @@ class AdminController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to create charity account. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : 'An unexpected error occurred while creating the charity account. Please verify all information is correct and try again.',
             ], 500);
         }
     }
@@ -176,8 +177,8 @@ class AdminController extends Controller
      * @OA\Get(
      *     path="/api/admin/charities",
      *     summary="Get all charity accounts (Admin only)",
-     *     tags={"Admin - Charity Management"},
-     *     security={{"bearer": {}}},
+     *     tags={"Admin Management"},
+     *     security={{"bearerAuth": {}}},
      *     @OA\Parameter(
      *         name="page",
      *         in="query",
@@ -200,8 +201,8 @@ class AdminController extends Controller
             ]);
 
             $charities = User::where('user_type', 'charity')
-                             ->with('roles')
-                             ->paginate(15);
+                ->with('roles')
+                ->paginate(15);
 
             return response()->json([
                 'success' => true,
@@ -216,7 +217,8 @@ class AdminController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to retrieve charities list.',
+                'message' => 'Failed to retrieve charities list. Please try again later.',
+                'error' => config('app.debug') ? $e->getMessage() : 'An unexpected error occurred while fetching the charities list.',
             ], 500);
         }
     }
@@ -227,8 +229,8 @@ class AdminController extends Controller
      * @OA\Get(
      *     path="/api/admin/stats",
      *     summary="Get platform statistics (Admin only)",
-     *     tags={"Admin - Analytics"},
-     *     security={{"bearer": {}}},
+     *     tags={"Admin Management"},
+     *     security={{"bearerAuth": {}}},
      *     @OA\Response(
      *         response=200,
      *         description="Statistics retrieved successfully",
@@ -258,8 +260,8 @@ class AdminController extends Controller
                 'total_charities' => User::where('user_type', 'charity')->count(),
                 'total_drivers' => User::where('is_driver', true)->count(),
                 'verified_drivers' => User::where('is_driver', true)
-                                          ->where('driver_verified', true)
-                                          ->count(),
+                    ->where('driver_verified', true)
+                    ->count(),
                 'active_users' => User::where('is_active', true)->count(),
             ];
 
@@ -276,7 +278,8 @@ class AdminController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to retrieve statistics.',
+                'message' => 'Failed to retrieve platform statistics. Please try again later.',
+                'error' => config('app.debug') ? $e->getMessage() : 'An unexpected error occurred while fetching platform statistics.',
             ], 500);
         }
     }

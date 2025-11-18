@@ -163,7 +163,7 @@ class TokenService
                 'user' => [
                     'id' => $user->id,
                     'email' => $user->email,
-                    'full_name' => $user->full_name,
+                    'name' => $user->name,
                     'user_type' => $user->user_type,
                     'is_driver' => $user->is_driver,
                 ],

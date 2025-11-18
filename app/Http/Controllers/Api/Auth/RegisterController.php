@@ -63,10 +63,16 @@ class RegisterController extends Controller
                 'message' => $e->getMessage(),
             ], 429);
         } catch (\Exception $e) {
+            \Log::error('Failed to send verification code', [
+                'email' => $request->input('email'),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to send verification code',
-                'error' => config('app.debug') ? $e->getMessage() : null,
+                'message' => 'Failed to send verification code. Please try again later.',
+                'error' => config('app.debug') ? $e->getMessage() : 'An unexpected error occurred while sending the verification code.',
             ], 500);
         }
     }
@@ -81,10 +87,10 @@ class RegisterController extends Controller
      *     @OA\RequestBody(
      *         required=true,
      *         @OA\JsonContent(
-     *             required={"email", "password", "full_name", "phone", "code"},
+     *             required={"email", "password", "name", "phone", "code"},
      *             @OA\Property(property="email", type="string", format="email", example="user@example.com"),
      *             @OA\Property(property="password", type="string", format="password", example="SecurePassword123!"),
-     *             @OA\Property(property="full_name", type="string", example="John Doe"),
+     *             @OA\Property(property="name", type="string", example="John Doe"),
      *             @OA\Property(property="phone", type="string", example="+96170123456"),
      *             @OA\Property(property="code", type="string", example="123456"),
      *             @OA\Property(property="device_name", type="string", example="iPhone 13")
@@ -118,10 +124,16 @@ class RegisterController extends Controller
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
+            \Log::error('Registration failed', [
+                'email' => $request->validated()['email'] ?? null,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Registration failed',
-                'error' => config('app.debug') ? $e->getMessage() : 'An error occurred during registration',
+                'message' => 'Registration failed. Please try again later.',
+                'error' => config('app.debug') ? $e->getMessage() : 'An unexpected error occurred during registration. Please verify your information and try again.',
             ], 500);
         }
     }
@@ -162,10 +174,16 @@ class RegisterController extends Controller
                 'message' => $e->getMessage(),
             ], 429);
         } catch (\Exception $e) {
+            \Log::error('Failed to resend verification code', [
+                'email' => $request->input('email'),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to resend verification code',
-                'error' => config('app.debug') ? $e->getMessage() : null,
+                'message' => 'Failed to resend verification code. Please try again later.',
+                'error' => config('app.debug') ? $e->getMessage() : 'An unexpected error occurred while resending the verification code.',
             ], 500);
         }
     }

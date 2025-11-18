@@ -38,7 +38,7 @@ class RegisterRequest extends FormRequest
                 'max:255',
                 'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/', // At least one lowercase, uppercase, and digit
             ],
-            'full_name' => [
+            'name' => [
                 'required',
                 'string',
                 'min:2',
@@ -81,9 +81,9 @@ class RegisterRequest extends FormRequest
             'password.min' => 'Password must be at least 8 characters long.',
             'password.regex' => 'Password must contain at least one uppercase letter, one lowercase letter, and one number.',
 
-            'full_name.required' => 'Full name is required.',
-            'full_name.min' => 'Full name must be at least 2 characters long.',
-            'full_name.max' => 'Full name must not exceed 255 characters.',
+            'name.required' => 'Full name is required.',
+            'name.min' => 'Full name must be at least 2 characters long.',
+            'name.max' => 'Full name must not exceed 255 characters.',
 
             'phone.required' => 'Phone number is required.',
             'phone.regex' => 'Please provide a valid phone number (e.g., +96170123456).',
@@ -103,7 +103,7 @@ class RegisterRequest extends FormRequest
     public function attributes(): array
     {
         return [
-            'full_name' => 'full name',
+            'name' => 'name',
             'code' => 'verification code',
         ];
     }

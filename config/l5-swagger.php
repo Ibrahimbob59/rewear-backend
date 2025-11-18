@@ -88,7 +88,7 @@ return [
             /*
              * Edit to set the api's base path
             */
-            'base' => env('L5_SWAGGER_BASE_PATH', '/api'),
+            'base' => env('L5_SWAGGER_BASE_PATH', null),
 
             /*
              * Edit to set path where swagger ui assets should be stored
@@ -140,7 +140,7 @@ return [
         */
         'securityDefinitions' => [
             'securitySchemes' => [
-                'bearer' => [
+                'bearerAuth' => [
                     'type' => 'http',
                     'description' => 'Enter JWT token in format: Bearer {token}',
                     'name' => 'Authorization',
@@ -151,7 +151,7 @@ return [
             ],
             'security' => [
                 [
-                    'bearer' => [],
+                    'bearerAuth' => [],
                 ],
             ],
         ],

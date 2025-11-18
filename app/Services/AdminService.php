@@ -42,15 +42,15 @@ class AdminService
         $charity = User::create([
             'email' => $data['email'],
             'password' => Hash::make($plainPassword),
-            'full_name' => $data['organization_name'],
+            'name' => $data['organization_name'],
+            'organization_name' => $data['organization_name'],
             'phone' => $data['phone'],
             'user_type' => 'charity',
             'city' => $data['city'] ?? null,
-            'location_lat' => $data['location_lat'] ?? null,
-            'location_lng' => $data['location_lng'] ?? null,
+            'latitude' => $data['latitude'] ?? null,
+            'longitude' => $data['longitude'] ?? null,
             'bio' => $data['bio'] ?? null,
             'email_verified_at' => now(), // Auto-verify charity emails
-            'email_verified' => true,
         ]);
 
         // Send credentials email to charity

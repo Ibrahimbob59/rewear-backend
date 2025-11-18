@@ -23,13 +23,12 @@ use App\Http\Controllers\Admin\AdminController;
 // Public Routes (No Authentication Required)
 Route::prefix('auth')->group(function () {
     // Registration
-    Route::post('/register-code', [RegisterController::class, 'sendCode']);
+    Route::post('/register-code', [RegisterController::class, 'requestCode']);
     Route::post('/register', [RegisterController::class, 'register']);
     Route::post('/resend-code', [RegisterController::class, 'resendCode']);
 
     // Login
     Route::post('/login', [LoginController::class, 'login']);
-    Route::post('/login-code', [LoginController::class, 'sendLoginCode']);
 
     // Token Management (Public)
     Route::post('/refresh-token', [TokenController::class, 'refreshToken']);
@@ -49,8 +48,9 @@ Route::middleware('auth:api')->group(function () {
         Route::post('/logout', [TokenController::class, 'logout']);
         Route::post('/logout-all', [TokenController::class, 'logoutAll']);
 
-        // Sessions
+        // Sessions & Token Stats
         Route::get('/sessions', [TokenController::class, 'getSessions']);
+        Route::get('/token-stats', [TokenController::class, 'getTokenStats']);
     });
 
     // User Management (Self)

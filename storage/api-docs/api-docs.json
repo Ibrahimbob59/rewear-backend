@@ -2,35 +2,19 @@
     "openapi": "3.0.0",
     "info": {
         "title": "ReWear API Documentation",
-        "description": "ReWear - Sustainable Fashion Marketplace API\n *\n * **Mission:** Making fashion sustainable and accessible\n *\n * **Tagline:** Buy, Sell, Donate\n *\n * ## Features\n * - 🛍️ **Marketplace:** Buy and sell pre-loved clothing\n * - 💚 **Donations:** Donate items to verified charities\n * - 🚚 **Delivery:** Local driver network\n * - 🌍 **Impact:** Track environmental and social impact\n *\n * ## Authentication\n * All protected endpoints require a JWT Bearer token in the Authorization header:\n * ```\n * Authorization: Bearer YOUR_JWT_TOKEN\n * ```\n *\n * ## Rate Limiting\n * - **Registration OTP:** 5 requests per email per hour, 5 per IP per hour\n * - **Login:** Standard Laravel rate limiting\n * - **API Calls:** 60 requests per minute\n *\n * ## User Roles\n * - **user:** Regular buyer/seller (default)\n * - **charity:** Organization receiving donations (admin-created)\n * - **driver:** Verified delivery personnel (admin-approved)\n * - **admin:** Platform administrator\n *\n * ## Support\n * - **Email:** support@rewear.com\n * - **Phone:** +961 70 123456\n * ",
-        "contact": {
-            "name": "ReWear Support Team",
-            "email": "support@rewear.com"
-        },
-        "license": {
-            "name": "MIT",
-            "url": "https://opensource.org/licenses/MIT"
-        },
         "version": "1.0.0"
     },
     "servers": [
         {
             "url": "http://localhost:8000",
             "description": "Local Development Server"
-        },
-        {
-            "url": "https://api.rewear.com",
-            "description": "Production Server"
-        },
-        {
-            "url": "/api"
         }
     ],
     "paths": {
         "/api/admin/charity/create": {
             "post": {
                 "tags": [
-                    "Admin - Charity Management"
+                    "Admin Management"
                 ],
                 "summary": "Create a charity account (Admin only)",
                 "description": "Create a charity account (Admin only)",
@@ -140,7 +124,7 @@
                 },
                 "security": [
                     {
-                        "bearer": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -148,7 +132,7 @@
         "/api/admin/charities": {
             "get": {
                 "tags": [
-                    "Admin - Charity Management"
+                    "Admin Management"
                 ],
                 "summary": "Get all charity accounts (Admin only)",
                 "description": "Get all charities (Admin only)",
@@ -174,7 +158,7 @@
                 },
                 "security": [
                     {
-                        "bearer": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -182,7 +166,7 @@
         "/api/admin/stats": {
             "get": {
                 "tags": [
-                    "Admin - Analytics"
+                    "Admin Management"
                 ],
                 "summary": "Get platform statistics (Admin only)",
                 "description": "Get platform statistics (Admin only)",
@@ -235,7 +219,7 @@
                 },
                 "security": [
                     {
-                        "bearer": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -291,51 +275,10 @@
                 }
             }
         },
-        "/api/auth/login-code": {
-            "post": {
-                "tags": [
-                    "Authentication"
-                ],
-                "summary": "Request verification code for login (optional)",
-                "description": "Request login verification code (optional OTP for login)",
-                "operationId": "44e019ea8c232dde06167e3c169ede52",
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "required": [
-                                    "email"
-                                ],
-                                "properties": {
-                                    "email": {
-                                        "type": "string",
-                                        "format": "email",
-                                        "example": "user@example.com"
-                                    }
-                                },
-                                "type": "object"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "Verification code sent"
-                    },
-                    "404": {
-                        "description": "User not found"
-                    },
-                    "429": {
-                        "description": "Too many requests"
-                    }
-                }
-            }
-        },
         "/api/auth/me": {
             "get": {
                 "tags": [
-                    "Profile"
+                    "User Management"
                 ],
                 "summary": "Get current user profile",
                 "description": "Get current authenticated user",
@@ -358,18 +301,18 @@
         "/api/auth/profile": {
             "put": {
                 "tags": [
-                    "Profile"
+                    "User Management"
                 ],
                 "summary": "Update user profile",
                 "description": "Update user profile",
-                "operationId": "bf5db0ea9448d0bb2797e1c1560daf01",
+                "operationId": "69c945d58460c189dfd8b6fcbbf56b2d",
                 "requestBody": {
                     "required": true,
                     "content": {
                         "application/json": {
                             "schema": {
                                 "properties": {
-                                    "full_name": {
+                                    "name": {
                                         "type": "string",
                                         "example": "John Doe"
                                     },
@@ -385,12 +328,12 @@
                                         "type": "string",
                                         "example": "Beirut"
                                     },
-                                    "location_lat": {
+                                    "latitude": {
                                         "type": "number",
                                         "format": "float",
                                         "example": 33.8886
                                     },
-                                    "location_lng": {
+                                    "longitude": {
                                         "type": "number",
                                         "format": "float",
                                         "example": 35.4955
@@ -422,7 +365,7 @@
         "/api/auth/password": {
             "put": {
                 "tags": [
-                    "Profile"
+                    "User Management"
                 ],
                 "summary": "Change user password",
                 "description": "Change password",
@@ -533,7 +476,7 @@
                                 "required": [
                                     "email",
                                     "password",
-                                    "full_name",
+                                    "name",
                                     "phone",
                                     "code"
                                 ],
@@ -548,7 +491,7 @@
                                         "format": "password",
                                         "example": "SecurePassword123!"
                                     },
-                                    "full_name": {
+                                    "name": {
                                         "type": "string",
                                         "example": "John Doe"
                                     },
@@ -628,7 +571,7 @@
                 ],
                 "summary": "Refresh access token",
                 "description": "Refresh access token using refresh token",
-                "operationId": "6c58dfc55f9dedcdba92125730675c22",
+                "operationId": "df1e0b09b7262c21d7ff6026092dece1",
                 "requestBody": {
                     "required": true,
                     "content": {
@@ -758,7 +701,7 @@
                 ],
                 "summary": "Get all active sessions",
                 "description": "Get all active sessions (devices)",
-                "operationId": "b476b67c08fcfc7de341986d5d82f798",
+                "operationId": "f149d5bce9ba67e81655a8847a4a0430",
                 "responses": {
                     "200": {
                         "description": "Sessions retrieved successfully"
@@ -781,7 +724,7 @@
                 ],
                 "summary": "Get token statistics",
                 "description": "Get token statistics for current user",
-                "operationId": "aeccb290612fa96f1ef2d900e418471b",
+                "operationId": "a932b5a237ec571f146aa12aa0697ce9",
                 "responses": {
                     "200": {
                         "description": "Statistics retrieved successfully"
@@ -855,7 +798,7 @@
                 },
                 "security": [
                     {
-                        "bearer": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -863,7 +806,7 @@
         "/api/admin/users/{userId}": {
             "delete": {
                 "tags": [
-                    "Admin - User Management"
+                    "Admin Management"
                 ],
                 "summary": "Delete any user (Admin only)",
                 "description": "Admin delete any user account",
@@ -926,7 +869,7 @@
                 },
                 "security": [
                     {
-                        "bearer": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -934,7 +877,7 @@
         "/api/admin/users": {
             "get": {
                 "tags": [
-                    "Admin - User Management"
+                    "Admin Management"
                 ],
                 "summary": "Get all users (Admin only)",
                 "description": "Get list of all users (Admin only)",
@@ -981,7 +924,7 @@
                 },
                 "security": [
                     {
-                        "bearer": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -989,7 +932,7 @@
     },
     "components": {
         "securitySchemes": {
-            "bearer": {
+            "bearerAuth": {
                 "type": "http",
                 "description": "Enter JWT token in format: Bearer {token}",
                 "name": "Authorization",
@@ -1005,29 +948,17 @@
             "description": "User registration, login, and authentication management"
         },
         {
-            "name": "Profile",
-            "description": "User profile and account management"
-        },
-        {
             "name": "User Management",
             "description": "User account deletion and management"
         },
         {
-            "name": "Admin - User Management",
-            "description": "Admin user management operations"
-        },
-        {
-            "name": "Admin - Charity Management",
-            "description": "Admin charity account management"
-        },
-        {
-            "name": "Admin - Analytics",
-            "description": "Platform statistics and analytics"
+            "name": "Admin Management",
+            "description": "Admin Management"
         }
     ],
     "security": [
         {
-            "bearer": []
+            "bearerAuth": []
         }
     ]
 }

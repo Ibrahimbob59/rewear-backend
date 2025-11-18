@@ -8,8 +8,9 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 use Illuminate\Support\Facades\Storage;
+use Tymon\JWTAuth\Contracts\JWTSubject;
 
-class User extends Authenticatable
+class User extends Authenticatable implements JWTSubject
 {
     use HasApiTokens, HasFactory, Notifiable, HasRoles;
 
@@ -186,11 +187,6 @@ class User extends Authenticatable
         return $this->is_driver && $this->driver_verified;
     }
 
-    public function isAccountLocked(): bool
-    {
-        return $this->locked_until && $this->locked_until->isFuture();
-    }
-
     public function incrementLoginAttempts(): void
     {
         $this->increment('login_attempts');
@@ -243,5 +239,37 @@ class User extends Authenticatable
             return trim($this->address . ', ' . $this->city . ', ' . $this->country);
         }
         return null;
+    }
+
+    /**
+     * Check if account is locked
+     */
+    public function isLocked(): bool
+    {
+        return $this->locked_until && $this->locked_until->isFuture();
+    }
+
+    /**
+     * Get the identifier that will be stored in the subject claim of the JWT.
+     *
+     * @return mixed
+     */
+    public function getJWTIdentifier()
+    {
+        return $this->getKey();
+    }
+
+    /**
+     * Return a key value array, containing any custom claims to be added to the JWT.
+     *
+     * @return array
+     */
+    public function getJWTCustomClaims()
+    {
+        return [
+            'email' => $this->email,
+            'user_type' => $this->user_type,
+            'is_driver' => $this->is_driver,
+        ];
     }
 }

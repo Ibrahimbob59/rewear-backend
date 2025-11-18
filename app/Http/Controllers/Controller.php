@@ -9,48 +9,7 @@ use Illuminate\Routing\Controller as BaseController;
 /**
  * @OA\Info(
  *     title="ReWear API Documentation",
- *     version="1.0.0",
- *     description="ReWear - Sustainable Fashion Marketplace API
- *
- * **Mission:** Making fashion sustainable and accessible
- *
- * **Tagline:** Buy, Sell, Donate
- *
- * ## Features
- * - 🛍️ **Marketplace:** Buy and sell pre-loved clothing
- * - 💚 **Donations:** Donate items to verified charities
- * - 🚚 **Delivery:** Local driver network
- * - 🌍 **Impact:** Track environmental and social impact
- *
- * ## Authentication
- * All protected endpoints require a JWT Bearer token in the Authorization header:
- * ```
- * Authorization: Bearer YOUR_JWT_TOKEN
- * ```
- *
- * ## Rate Limiting
- * - **Registration OTP:** 5 requests per email per hour, 5 per IP per hour
- * - **Login:** Standard Laravel rate limiting
- * - **API Calls:** 60 requests per minute
- *
- * ## User Roles
- * - **user:** Regular buyer/seller (default)
- * - **charity:** Organization receiving donations (admin-created)
- * - **driver:** Verified delivery personnel (admin-approved)
- * - **admin:** Platform administrator
- *
- * ## Support
- * - **Email:** support@rewear.com
- * - **Phone:** +961 70 123456
- * ",
- *     @OA\Contact(
- *         email="support@rewear.com",
- *         name="ReWear Support Team"
- *     ),
- *     @OA\License(
- *         name="MIT",
- *         url="https://opensource.org/licenses/MIT"
- *     )
+ *     version="1.0.0"
  * )
  *
  * @OA\Server(
@@ -58,14 +17,9 @@ use Illuminate\Routing\Controller as BaseController;
  *     description="Local Development Server"
  * )
  *
- * @OA\Server(
- *     url="https://api.rewear.com",
- *     description="Production Server"
- * )
- *
  * @OA\SecurityScheme(
  *     type="http",
- *     securityScheme="bearer",
+ *     securityScheme="bearerAuth",
  *     scheme="bearer",
  *     bearerFormat="JWT",
  *     description="Enter your JWT token in the format: Bearer {token}"

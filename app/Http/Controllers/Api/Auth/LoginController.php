@@ -4,12 +4,10 @@ namespace App\Http\Controllers\Api\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
-use App\Http\Requests\Auth\LoginCodeRequest;
 use App\Services\AuthService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
-use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
 
 class LoginController extends Controller
 {
@@ -69,66 +67,16 @@ class LoginController extends Controller
                 'message' => $e->getMessage(),
             ], 401);
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Login failed',
-                'error' => config('app.debug') ? $e->getMessage() : 'An error occurred during login',
-            ], 500);
-        }
-    }
-
-    /**
-     * Request login verification code (optional OTP for login)
-     *
-     * @OA\Post(
-     *     path="/api/auth/login-code",
-     *     tags={"Authentication"},
-     *     summary="Request verification code for login (optional)",
-     *     @OA\RequestBody(
-     *         required=true,
-     *         @OA\JsonContent(
-     *             required={"email"},
-     *             @OA\Property(property="email", type="string", format="email", example="user@example.com")
-     *         )
-     *     ),
-     *     @OA\Response(response=200, description="Verification code sent"),
-     *     @OA\Response(response=404, description="User not found"),
-     *     @OA\Response(response=429, description="Too many requests")
-     * )
-     */
-    public function requestCode(LoginCodeRequest $request): JsonResponse
-    {
-        try {
-            $result = $this->authService->sendLoginCode($request->input('email'));
-
-            return response()->json([
-                'success' => true,
-                'message' => $result['message'],
-                'data' => [
-                    'expires_at' => $result['expires_at'],
-                ],
+            \Log::error('Login failed', [
+                'email' => $request->validated()['email'] ?? null,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ]);
-        } catch (ValidationException $e) {
+
             return response()->json([
                 'success' => false,
-                'message' => 'Validation failed',
-                'errors' => $e->errors(),
-            ], 422);
-        } catch (UnauthorizedHttpException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage(),
-            ], 401);
-        } catch (TooManyRequestsHttpException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage(),
-            ], 429);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to send verification code',
-                'error' => config('app.debug') ? $e->getMessage() : null,
+                'message' => 'Login failed. Please try again later.',
+                'error' => config('app.debug') ? $e->getMessage() : 'An unexpected error occurred during login. Please check your credentials and try again.',
             ], 500);
         }
     }

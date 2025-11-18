@@ -26,7 +26,7 @@ class UpdateProfileRequest extends FormRequest
         $userId = $this->user()->id;
 
         return [
-            'full_name' => [
+            'name' => [
                 'sometimes',
                 'string',
                 'min:2',
@@ -48,12 +48,12 @@ class UpdateProfileRequest extends FormRequest
                 'string',
                 'max:100',
             ],
-            'location_lat' => [
+            'latitude' => [
                 'nullable',
                 'numeric',
                 'between:-90,90',
             ],
-            'location_lng' => [
+            'longitude' => [
                 'nullable',
                 'numeric',
                 'between:-180,180',
@@ -69,14 +69,14 @@ class UpdateProfileRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'full_name.min' => 'Full name must be at least 2 characters long.',
-            'full_name.max' => 'Full name must not exceed 255 characters.',
+            'name.min' => 'Name must be at least 2 characters long.',
+            'name.max' => 'Name must not exceed 255 characters.',
             'phone.regex' => 'Please provide a valid phone number (e.g., +96170123456).',
             'phone.unique' => 'This phone number is already in use.',
             'bio.max' => 'Bio must not exceed 500 characters.',
             'city.max' => 'City name must not exceed 100 characters.',
-            'location_lat.between' => 'Latitude must be between -90 and 90.',
-            'location_lng.between' => 'Longitude must be between -180 and 180.',
+            'latitude.between' => 'Latitude must be between -90 and 90.',
+            'longitude.between' => 'Longitude must be between -180 and 180.',
         ];
     }
 

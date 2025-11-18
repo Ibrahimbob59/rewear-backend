@@ -37,7 +37,7 @@ class TokenController extends Controller
      *     @OA\Response(response=401, description="Invalid or expired refresh token")
      * )
      */
-    public function refresh(RefreshTokenRequest $request): JsonResponse
+    public function refreshToken(RefreshTokenRequest $request): JsonResponse
     {
         try {
             $rotate = $request->boolean('rotate', false);
@@ -58,10 +58,15 @@ class TokenController extends Controller
                 'message' => $e->getMessage(),
             ], 401);
         } catch (\Exception $e) {
+            \Log::error('Failed to refresh token', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to refresh token',
-                'error' => config('app.debug') ? $e->getMessage() : null,
+                'message' => 'Failed to refresh access token. Please try again later.',
+                'error' => config('app.debug') ? $e->getMessage() : 'An unexpected error occurred while refreshing your token. You may need to login again.',
             ], 500);
         }
     }
@@ -104,10 +109,15 @@ class TokenController extends Controller
                 'message' => $e->getMessage(),
             ], 401);
         } catch (\Exception $e) {
+            \Log::error('Token validation failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Token validation failed',
-                'error' => config('app.debug') ? $e->getMessage() : null,
+                'message' => 'Token validation failed.',
+                'error' => config('app.debug') ? $e->getMessage() : 'Could not validate the provided token. It may be expired or invalid.',
             ], 500);
         }
     }
@@ -146,10 +156,16 @@ class TokenController extends Controller
                 'message' => $e->getMessage(),
             ], 401);
         } catch (\Exception $e) {
+            \Log::error('Logout failed', [
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Logout failed',
-                'error' => config('app.debug') ? $e->getMessage() : null,
+                'message' => 'Logout failed. Please try again later.',
+                'error' => config('app.debug') ? $e->getMessage() : 'An unexpected error occurred during logout.',
             ], 500);
         }
     }
@@ -181,10 +197,16 @@ class TokenController extends Controller
                 ],
             ]);
         } catch (\Exception $e) {
+            \Log::error('Failed to logout from all devices', [
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to logout from all devices',
-                'error' => config('app.debug') ? $e->getMessage() : null,
+                'message' => 'Failed to logout from all devices. Please try again later.',
+                'error' => config('app.debug') ? $e->getMessage() : 'An unexpected error occurred while logging out from all devices.',
             ], 500);
         }
     }
@@ -201,7 +223,7 @@ class TokenController extends Controller
      *     @OA\Response(response=401, description="Unauthorized")
      * )
      */
-    public function sessions(Request $request): JsonResponse
+    public function getSessions(Request $request): JsonResponse
     {
         try {
             $user = $request->user();
@@ -217,10 +239,16 @@ class TokenController extends Controller
                 ],
             ]);
         } catch (\Exception $e) {
+            \Log::error('Failed to retrieve sessions', [
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to retrieve sessions',
-                'error' => config('app.debug') ? $e->getMessage() : null,
+                'message' => 'Failed to retrieve active sessions. Please try again later.',
+                'error' => config('app.debug') ? $e->getMessage() : 'An unexpected error occurred while fetching your sessions.',
             ], 500);
         }
     }
@@ -237,7 +265,7 @@ class TokenController extends Controller
      *     @OA\Response(response=401, description="Unauthorized")
      * )
      */
-    public function stats(Request $request): JsonResponse
+    public function getTokenStats(Request $request): JsonResponse
     {
         try {
             $user = $request->user();
@@ -250,10 +278,16 @@ class TokenController extends Controller
                 'data' => $stats,
             ]);
         } catch (\Exception $e) {
+            \Log::error('Failed to retrieve token statistics', [
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to retrieve statistics',
-                'error' => config('app.debug') ? $e->getMessage() : null,
+                'message' => 'Failed to retrieve token statistics. Please try again later.',
+                'error' => config('app.debug') ? $e->getMessage() : 'An unexpected error occurred while fetching token statistics.',
             ], 500);
         }
     }
