@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -273,4 +274,173 @@ class User extends Authenticatable implements JWTSubject
             'is_driver' => $this->is_driver,
         ];
     }
+
+    /**
+     * Get orders where user is buyer
+     */
+    public function purchases()
+    {
+        return $this->hasMany(Order::class, 'buyer_id');
+    }
+
+    /**
+     * Get orders where user is seller
+     */
+    public function sales()
+    {
+        return $this->hasMany(Order::class, 'seller_id');
+    }
+
+
+    /**
+     * Get user's default address
+     */
+    public function defaultAddress()
+    {
+        return $this->hasOne(Address::class)->where('is_default', true);
+    }
+
+
+    /**
+     * Get items favorited by user
+     */
+    public function favoritedItems()
+    {
+        return $this->belongsToMany(Item::class, 'favorites')->withTimestamps();
+    }
+
+
+
+    /**
+     * Get unread notifications
+     */
+    public function unreadNotifications()
+    {
+        return $this->hasMany(Notification::class)->where('is_read', false);
+    }
+
+    /**
+     * Get deliveries assigned to this user (if driver)
+     */
+    public function deliveries()
+    {
+        return $this->hasMany(Delivery::class, 'driver_id');
+    }
+
+    // ==================== NEW METHODS ====================
+
+    /**
+     * Create a notification for this user
+     * 
+     * @param string $title
+     * @param string $message
+     * @param string $type (order, delivery, message, system)
+     * @param string|null $actionUrl
+     * @param array|null $data
+     * @return Notification
+     */
+    public function notify($title, $message, $type = 'system', $actionUrl = null, $data = null)
+    {
+        return $this->notifications()->create([
+            'title' => $title,
+            'message' => $message,
+            'type' => $type,
+            'action_url' => $actionUrl,
+            'data' => $data,
+            'is_read' => false,
+        ]);
+    }
+
+    /**
+     * Check if user has unread notifications
+     */
+    public function hasUnreadNotifications()
+    {
+        return $this->unreadNotifications()->exists();
+    }
+
+    /**
+     * Get unread notifications count
+     */
+    public function unreadNotificationsCount()
+    {
+        return $this->unreadNotifications()->count();
+    }
+
+    /**
+     * Mark all notifications as read
+     */
+    public function markAllNotificationsAsRead()
+    {
+        return $this->notifications()->update([
+            'is_read' => true,
+            'read_at' => now(),
+        ]);
+    }
+
+    /**
+     * Check if user has location set
+     */
+    public function hasLocation()
+    {
+        return $this->location_lat && $this->location_lng;
+    }
+
+    /**
+     * Get user's active items (available for sale/donation)
+     */
+    public function activeItems()
+    {
+        return $this->items()->where('status', 'available');
+    }
+
+    /**
+     * Get user's sold items
+     */
+    public function soldItems()
+    {
+        return $this->items()->where('status', 'sold');
+    }
+
+    /**
+     * Get user's donated items
+     */
+    public function donatedItems()
+    {
+        return $this->items()->where('status', 'donated');
+    }
+
+    /**
+     * Check if user can create items (not suspended, email verified, etc.)
+     */
+    public function canCreateItems()
+    {
+        return $this->email_verified_at !== null;
+    }
+
+    /**
+     * Check if user can place orders
+     */
+    public function canPlaceOrders()
+    {
+        return $this->email_verified_at !== null;
+    }
+
+
+    /**
+     * Get all orders where user is buyer
+     */
+    public function purchaseOrders(): HasMany
+    {
+        return $this->hasMany(Order::class, 'buyer_id');
+    }
+
+    /**
+     * Get all orders where user is seller
+     */
+    public function salesOrders(): HasMany
+    {
+        return $this->hasMany(Order::class, 'seller_id');
+    }
+
 }
