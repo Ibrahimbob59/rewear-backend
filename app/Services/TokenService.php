@@ -4,26 +4,37 @@ namespace App\Services;
 
 use App\Models\User;
 use App\Models\RefreshToken;
-use Tymon\JWTAuth\Facades\JWTAuth;
 use Illuminate\Support\Str;
-use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 use Illuminate\Support\Facades\Request;
+use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
+
+use Lcobucci\JWT\Configuration;
+use Lcobucci\JWT\Signer\Hmac\Sha256;
+use Lcobucci\JWT\Signer\Key\InMemory;
+use Lcobucci\JWT\Validation\Constraint\SignedWith;
+use Lcobucci\JWT\Validation\Constraint\StrictValidAt;
+use Lcobucci\Clock\SystemClock;
+
 
 class TokenService
 {
+    protected Configuration $jwt;
+
+    public function __construct()
+    {
+        $this->jwt = Configuration::forSymmetricSigner(
+            new Sha256(),
+            InMemory::plainText(config('jwt.secret'))
+        );
+    }
+
     /**
      * Generate both access token (JWT) and refresh token
-     *
-     * @param User $user
-     * @param string|null $deviceName
-     * @return array
      */
     public function generateTokens(User $user, ?string $deviceName = null): array
     {
-        // Generate JWT access token
-        $accessToken = JWTAuth::fromUser($user);
+        $accessToken = $this->generateJwtForUser($user);
 
-        // Generate refresh token
         $refreshToken = $this->generateRefreshToken(
             $user->id,
             $deviceName,
@@ -35,20 +46,27 @@ class TokenService
             'access_token' => $accessToken,
             'refresh_token' => $refreshToken->token,
             'token_type' => 'Bearer',
-            'expires_in' => config('jwt.ttl') * 60, // Convert minutes to seconds
-            'refresh_expires_in' => config('auth.refresh_token_expires_days') * 24 * 60 * 60, // Convert days to seconds
+            'expires_in' => config('jwt.ttl') * 60,
+            'refresh_expires_in' => config('auth.refresh_token_expires_days') * 86400,
         ];
     }
 
-    /**
-     * Generate a new refresh token
-     *
-     * @param int $userId
-     * @param string|null $deviceName
-     * @param string|null $ipAddress
-     * @param string|null $userAgent
-     * @return RefreshToken
-     */
+    protected function generateJwtForUser(User $user): string
+    {
+        $now = new \DateTimeImmutable();
+        $ttl = (int) config('jwt.ttl');
+
+        return $this->jwt->builder()
+            ->issuedBy(config('app.url'))
+            ->issuedAt($now)
+            ->expiresAt($now->modify("+{$ttl} minutes"))
+            ->relatedTo((string) $user->id)
+            ->withClaim('email', $user->email)
+            ->withClaim('user_type', $user->user_type)
+            ->getToken($this->jwt->signer(), $this->jwt->signingKey())
+            ->toString();
+    }
+
     protected function generateRefreshToken(
         int $userId,
         ?string $deviceName = null,
@@ -58,7 +76,7 @@ class TokenService
         return RefreshToken::create([
             'user_id' => $userId,
             'token' => Str::random(64),
-            'expires_at' => now()->addDays((int) config('auth.refresh_token_expires_days', 30)), // ✅ Cast to int
+            'expires_at' => now()->addDays((int) config('auth.refresh_token_expires_days', 30)),
             'device_name' => $deviceName,
             'ip_address' => $ipAddress,
             'user_agent' => $userAgent,
@@ -68,46 +86,24 @@ class TokenService
 
     /**
      * Refresh access token using refresh token
-     *
-     * @param string $refreshTokenString
-     * @param bool $rotateRefreshToken
-     * @return array
-     * @throws UnauthorizedHttpException
      */
     public function refreshAccessToken(string $refreshTokenString, bool $rotateRefreshToken = false): array
     {
-        // Find the refresh token
         $refreshToken = RefreshToken::where('token', $refreshTokenString)->first();
 
-        if (!$refreshToken) {
+        if (!$refreshToken || !$refreshToken->isValid()) {
             throw new UnauthorizedHttpException('Bearer', 'Invalid refresh token');
         }
 
-        // Check if token is valid
-        if (!$refreshToken->isValid()) {
-            throw new UnauthorizedHttpException(
-                'Bearer',
-                $refreshToken->isRevoked() ? 'Refresh token has been revoked' : 'Refresh token has expired'
-            );
-        }
-
-        // Get the user
         $user = $refreshToken->user;
 
-        if (!$user) {
-            throw new UnauthorizedHttpException('Bearer', 'User not found');
+        if (!$user || !$user->is_active) {
+            throw new UnauthorizedHttpException('Bearer', 'User invalid or inactive');
         }
 
-        // Check if user account is active
-        if (!$user->is_active) {
-            throw new UnauthorizedHttpException('Bearer', 'User account is inactive');
-        }
-
-        // Update last used timestamp
         $refreshToken->updateLastUsed();
 
-        // Generate new access token
-        $accessToken = JWTAuth::fromUser($user);
+        $accessToken = $this->generateJwtForUser($user);
 
         $response = [
             'access_token' => $accessToken,
@@ -115,12 +111,9 @@ class TokenService
             'expires_in' => config('jwt.ttl') * 60,
         ];
 
-        // Optionally rotate refresh token (more secure)
         if ($rotateRefreshToken) {
-            // Revoke old refresh token
             $refreshToken->revoke();
 
-            // Generate new refresh token
             $newRefreshToken = $this->generateRefreshToken(
                 $user->id,
                 $refreshToken->device_name,
@@ -129,7 +122,7 @@ class TokenService
             );
 
             $response['refresh_token'] = $newRefreshToken->token;
-            $response['refresh_expires_in'] = config('auth.refresh_token_expires_days') * 24 * 60 * 60;
+            $response['refresh_expires_in'] = config('auth.refresh_token_expires_days') * 86400;
         }
 
         return $response;
@@ -137,58 +130,29 @@ class TokenService
 
     /**
      * Validate JWT access token
-     *
-     * @param string $token
-     * @return array
-     * @throws UnauthorizedHttpException
      */
     public function validateToken(string $token): array
     {
         try {
-            // Set the token
-            JWTAuth::setToken($token);
+            $token = $this->jwt->parser()->parse($token);
 
-            // Attempt to authenticate
-            $user = JWTAuth::authenticate();
+            $constraints = [
+                new SignedWith($this->jwt->signer(), $this->jwt->verificationKey()),
+                new StrictValidAt(SystemClock::fromSystemTimezone()),
+            ];
 
-            if (!$user) {
-                throw new UnauthorizedHttpException('Bearer', 'Token is invalid or user not found');
-            }
-
-            // Get token payload
-            $payload = JWTAuth::getPayload();
+            $this->jwt->validator()->assert($token, ...$constraints);
 
             return [
                 'valid' => true,
-                'user' => [
-                    'id' => $user->id,
-                    'email' => $user->email,
-                    'name' => $user->name,
-                    'user_type' => $user->user_type,
-                    'is_driver' => $user->is_driver,
-                ],
-                'token_info' => [
-                    'issued_at' => date('Y-m-d H:i:s', $payload->get('iat')),
-                    'expires_at' => date('Y-m-d H:i:s', $payload->get('exp')),
-                    'expires_in' => $payload->get('exp') - time(),
-                ],
+                'user_id' => $token->claims()->get('sub'),
+                'expires_at' => $token->claims()->get('exp')->format('Y-m-d H:i:s'),
             ];
-        } catch (\Tymon\JWTAuth\Exceptions\TokenExpiredException $e) {
-            throw new UnauthorizedHttpException('Bearer', 'Token has expired');
-        } catch (\Tymon\JWTAuth\Exceptions\TokenInvalidException $e) {
-            throw new UnauthorizedHttpException('Bearer', 'Token is invalid');
-        } catch (\Tymon\JWTAuth\Exceptions\JWTException $e) {
-            throw new UnauthorizedHttpException('Bearer', 'Token error: ' . $e->getMessage());
+        } catch (\Throwable $e) {
+            throw new UnauthorizedHttpException('Bearer', 'Token is invalid or expired');
         }
     }
 
-    /**
-     * Revoke a single refresh token (logout from one device)
-     *
-     * @param string $refreshTokenString
-     * @return bool
-     * @throws UnauthorizedHttpException
-     */
     public function revokeRefreshToken(string $refreshTokenString): bool
     {
         $refreshToken = RefreshToken::where('token', $refreshTokenString)->first();
@@ -198,16 +162,9 @@ class TokenService
         }
 
         $refreshToken->revoke();
-
         return true;
     }
 
-    /**
-     * Revoke all refresh tokens for a user (logout from all devices)
-     *
-     * @param int $userId
-     * @return int Number of tokens revoked
-     */
     public function revokeAllUserTokens(int $userId): int
     {
         return RefreshToken::where('user_id', $userId)
@@ -215,69 +172,46 @@ class TokenService
             ->update(['revoked_at' => now()]);
     }
 
-    /**
-     * Get all active sessions (refresh tokens) for a user
-     *
-     * @param int $userId
-     * @return array
-     */
     public function getUserSessions(int $userId): array
     {
-        $tokens = RefreshToken::where('user_id', $userId)
+        return RefreshToken::where('user_id', $userId)
             ->valid()
-            ->orderBy('last_used_at', 'desc')
-            ->get();
-
-        return $tokens->map(function ($token) {
-            return [
+            ->orderByDesc('last_used_at')
+            ->get()
+            ->map(fn ($token) => [
                 'id' => $token->id,
                 'device_name' => $token->device_name ?? 'Unknown Device',
                 'ip_address' => $token->ip_address,
                 'last_used_at' => $token->last_used_at?->toISOString(),
                 'created_at' => $token->created_at->toISOString(),
                 'expires_at' => $token->expires_at->toISOString(),
-            ];
-        })->toArray();
+            ])
+            ->toArray();
     }
 
-    /**
-     * Clean up expired and revoked tokens (for scheduled job)
-     *
-     * @return array
-     */
     public function cleanupTokens(): array
     {
-        // Delete expired tokens older than 7 days
-        $expiredDeleted = RefreshToken::where('expires_at', '<', now()->subDays(7))
-            ->delete();
-
-        // Delete revoked tokens older than 30 days
-        $revokedDeleted = RefreshToken::whereNotNull('revoked_at')
+        $expired = RefreshToken::where('expires_at', '<', now()->subDays(7))->delete();
+        $revoked = RefreshToken::whereNotNull('revoked_at')
             ->where('revoked_at', '<', now()->subDays(30))
             ->delete();
 
         return [
-            'expired_deleted' => $expiredDeleted,
-            'revoked_deleted' => $revokedDeleted,
-            'total_deleted' => $expiredDeleted + $revokedDeleted,
+            'expired_deleted' => $expired,
+            'revoked_deleted' => $revoked,
+            'total_deleted' => $expired + $revoked,
         ];
     }
 
-    /**
-     * Get token statistics for a user
-     *
-     * @param int $userId
-     * @return array
-     */
     public function getUserTokenStats(int $userId): array
     {
-        $allTokens = RefreshToken::where('user_id', $userId);
+        $query = RefreshToken::where('user_id', $userId);
 
         return [
-            'total_tokens' => $allTokens->count(),
-            'active_tokens' => $allTokens->clone()->valid()->count(),
-            'expired_tokens' => $allTokens->clone()->expired()->count(),
-            'revoked_tokens' => $allTokens->clone()->revoked()->count(),
+            'total_tokens' => $query->count(),
+            'active_tokens' => (clone $query)->valid()->count(),
+            'expired_tokens' => (clone $query)->expired()->count(),
+            'revoked_tokens' => (clone $query)->revoked()->count(),
         ];
     }
 }

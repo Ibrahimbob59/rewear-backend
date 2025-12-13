@@ -3,41 +3,43 @@
 return [
     /*
     |--------------------------------------------------------------------------
-    | Firebase API Key (Web API Key)
+    | Firebase Credentials
     |--------------------------------------------------------------------------
     |
-    | Get this from Firebase Console → Project Settings → Web API Key
+    | Path to your Firebase service account JSON file
+    | Download from: Firebase Console > Project Settings > Service Accounts
     |
     */
-    'api_key' => env('FIREBASE_API_KEY'),
+    'credentials' => [
+        'file' => env('FIREBASE_CREDENTIALS', storage_path('app/firebase/firebase-credentials.json')),
+    ],
 
     /*
     |--------------------------------------------------------------------------
     | Firebase Storage Bucket
     |--------------------------------------------------------------------------
     |
-    | Your Firebase storage bucket name (e.g., your-project.appspot.com)
+    | Your Firebase Storage bucket name
+    | Format: your-project-id.appspot.com
     |
     */
-    'storage_bucket' => env('FIREBASE_STORAGE_BUCKET'),
+    'storage' => [
+        'bucket' => env('FIREBASE_STORAGE_BUCKET', 'rewear-app.appspot.com'),
+    ],
 
     /*
     |--------------------------------------------------------------------------
-    | Image Settings
+    | Firebase Realtime Database URL (if needed later)
     |--------------------------------------------------------------------------
     */
-    'images' => [
-        'max_size' => 5 * 1024 * 1024, // 5MB in bytes
-        'allowed_types' => ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'],
-        'allowed_extensions' => ['jpg', 'jpeg', 'png', 'webp'],
-        'max_count' => 6,
-        'min_count' => 1,
-
-        // Resize settings
-        'resize' => [
-            'max_width' => 1200,
-            'max_height' => 1200,
-            'quality' => 85,
-        ],
+    'database' => [
+        'url' => env('FIREBASE_DATABASE_URL', ''),
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Firebase Project ID
+    |--------------------------------------------------------------------------
+    */
+    'project_id' => env('FIREBASE_PROJECT_ID', ''),
 ];

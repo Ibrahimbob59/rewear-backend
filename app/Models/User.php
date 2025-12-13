@@ -8,9 +8,8 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
-use Tymon\JWTAuth\Contracts\JWTSubject;
 
-class User extends Authenticatable implements JWTSubject
+class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable, HasRoles;
 
@@ -69,18 +68,6 @@ class User extends Authenticatable implements JWTSubject
         'password' => 'hashed',
     ];
 
-    // ==================== JWT METHODS ====================
-
-    public function getJWTIdentifier()
-    {
-        return $this->getKey();
-    }
-
-    public function getJWTCustomClaims()
-    {
-        return [];
-    }
-
     // ==================== AUTH RELATIONSHIPS ====================
 
     public function refreshTokens(): HasMany
@@ -95,65 +82,41 @@ class User extends Authenticatable implements JWTSubject
 
     // ==================== MARKETPLACE RELATIONSHIPS ====================
 
-    /**
-     * Get items listed by this user (as seller)
-     */
     public function items(): HasMany
     {
         return $this->hasMany(Item::class, 'seller_id');
     }
 
-    /**
-     * Get orders where user is the buyer
-     */
     public function purchasedOrders(): HasMany
     {
         return $this->hasMany(Order::class, 'buyer_id');
     }
 
-    /**
-     * Get orders where user is the seller
-     */
     public function soldOrders(): HasMany
     {
         return $this->hasMany(Order::class, 'seller_id');
     }
 
-    /**
-     * Get user's delivery addresses
-     */
     public function addresses(): HasMany
     {
         return $this->hasMany(Address::class);
     }
 
-    /**
-     * Get user's favorites
-     */
     public function favorites(): HasMany
     {
         return $this->hasMany(Favorite::class);
     }
 
-    /**
-     * Get deliveries assigned to this user (as driver)
-     */
     public function deliveries(): HasMany
     {
         return $this->hasMany(Delivery::class, 'driver_id');
     }
 
-    /**
-     * Get user's notifications
-     */
     public function notifications(): HasMany
     {
         return $this->hasMany(Notification::class);
     }
 
-    /**
-     * Get driver application
-     */
     public function driverApplication(): HasMany
     {
         return $this->hasMany(DriverApplication::class);
@@ -191,35 +154,27 @@ class User extends Authenticatable implements JWTSubject
 
     // ==================== MARKETPLACE HELPER METHODS ====================
 
-    /**
-     * Check if user is a verified driver
-     */
     public function isVerifiedDriver(): bool
     {
         return $this->is_driver && $this->driver_verified;
     }
 
-    /**
-     * Get user's default address
-     */
     public function getDefaultAddress(): ?Address
     {
         return $this->addresses()->where('is_default', true)->first();
     }
 
-    /**
-     * Get total items sold
-     */
     public function getTotalItemsSoldAttribute(): int
     {
-        return $this->soldOrders()->whereIn('status', ['delivered', 'completed'])->count();
+        return $this->soldOrders()
+            ->whereIn('status', ['delivered', 'completed'])
+            ->count();
     }
 
-    /**
-     * Get total items purchased
-     */
     public function getTotalItemsPurchasedAttribute(): int
     {
-        return $this->purchasedOrders()->whereIn('status', ['delivered', 'completed'])->count();
+        return $this->purchasedOrders()
+            ->whereIn('status', ['delivered', 'completed'])
+            ->count();
     }
 }

@@ -8,6 +8,7 @@ use App\Services\AuthService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
+use Illuminate\Support\Facades\Log;
 
 class LoginController extends Controller
 {
@@ -67,7 +68,7 @@ class LoginController extends Controller
                 'message' => $e->getMessage(),
             ], 401);
         } catch (\Exception $e) {
-            \Log::error('Login failed', [
+            Log::error('Login failed', [
                 'email' => $request->validated()['email'] ?? null,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),

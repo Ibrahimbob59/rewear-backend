@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
@@ -54,9 +55,10 @@ class AdminController extends Controller
      *     @OA\Response(response=422, description="Validation error")
      * )
      */
-    public function createCharity(Request $request)
+    public function createCharity(Request $request): JsonResponse
     {
         try {
+            /** @var User $admin */
             $admin = auth()->user();
 
             Log::info('Admin charity creation attempt', [
@@ -192,7 +194,7 @@ class AdminController extends Controller
      *     @OA\Response(response=403, description="Forbidden - Not an admin")
      * )
      */
-    public function getCharities(Request $request)
+    public function getCharities(Request $request): JsonResponse
     {
         try {
             Log::info('Admin viewing charities list', [
@@ -248,7 +250,7 @@ class AdminController extends Controller
      *     @OA\Response(response=403, description="Forbidden - Not an admin")
      * )
      */
-    public function getStats()
+    public function getStats(): JsonResponse
     {
         try {
             Log::info('Admin viewing platform statistics', [

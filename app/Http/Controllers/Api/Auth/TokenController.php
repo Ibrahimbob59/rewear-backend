@@ -8,6 +8,7 @@ use App\Services\TokenService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
+use Illuminate\Support\Facades\Log;
 
 class TokenController extends Controller
 {
@@ -58,7 +59,7 @@ class TokenController extends Controller
                 'message' => $e->getMessage(),
             ], 401);
         } catch (\Exception $e) {
-            \Log::error('Failed to refresh token', [
+            Log::error('Failed to refresh token', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
@@ -109,7 +110,7 @@ class TokenController extends Controller
                 'message' => $e->getMessage(),
             ], 401);
         } catch (\Exception $e) {
-            \Log::error('Token validation failed', [
+            Log::error('Token validation failed', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
@@ -156,7 +157,7 @@ class TokenController extends Controller
                 'message' => $e->getMessage(),
             ], 401);
         } catch (\Exception $e) {
-            \Log::error('Logout failed', [
+            Log::error('Logout failed', [
                 'user_id' => auth()->id(),
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
@@ -197,7 +198,7 @@ class TokenController extends Controller
                 ],
             ]);
         } catch (\Exception $e) {
-            \Log::error('Failed to logout from all devices', [
+            Log::error('Failed to logout from all devices', [
                 'user_id' => auth()->id(),
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
@@ -239,7 +240,7 @@ class TokenController extends Controller
                 ],
             ]);
         } catch (\Exception $e) {
-            \Log::error('Failed to retrieve sessions', [
+            Log::error('Failed to retrieve sessions', [
                 'user_id' => auth()->id(),
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
@@ -278,7 +279,7 @@ class TokenController extends Controller
                 'data' => $stats,
             ]);
         } catch (\Exception $e) {
-            \Log::error('Failed to retrieve token statistics', [
+            Log::error('Failed to retrieve token statistics', [
                 'user_id' => auth()->id(),
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),

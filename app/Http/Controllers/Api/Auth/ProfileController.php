@@ -9,6 +9,7 @@ use App\Services\AuthService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Log;
 
 class ProfileController extends Controller
 {
@@ -62,7 +63,7 @@ class ProfileController extends Controller
                 ],
             ]);
         } catch (\Exception $e) {
-            \Log::error('Failed to retrieve profile', [
+            Log::error('Failed to retrieve profile', [
                 'user_id' => auth()->id(),
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
@@ -121,7 +122,7 @@ class ProfileController extends Controller
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
-            \Log::error('Failed to update profile', [
+            Log::error('Failed to update profile', [
                 'user_id' => auth()->id(),
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
@@ -179,7 +180,7 @@ class ProfileController extends Controller
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
-            \Log::error('Failed to change password', [
+            Log::error('Failed to change password', [
                 'user_id' => auth()->id(),
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),

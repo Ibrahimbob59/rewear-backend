@@ -8,6 +8,7 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\CharityCredentialsMail;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Log;
 
 class AdminService
 {
@@ -60,7 +61,7 @@ class AdminService
             );
         } catch (\Exception $e) {
             // Log email failure but don't fail the request
-            \Log::warning('Failed to send charity credentials email', [
+            Log::warning('Failed to send charity credentials email', [
                 'charity_id' => $charity->id,
                 'error' => $e->getMessage()
             ]);

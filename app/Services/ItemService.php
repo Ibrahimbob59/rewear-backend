@@ -11,7 +11,7 @@ use Illuminate\Pagination\LengthAwarePaginator;
 
 class ItemService
 {
-    protected $firebaseStorage;
+    protected FirebaseStorageService $firebaseStorage;
 
     public function __construct(FirebaseStorageService $firebaseStorage)
     {

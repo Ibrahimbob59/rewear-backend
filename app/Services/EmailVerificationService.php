@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Cache;
 use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Log;
 
 class EmailVerificationService
 {
@@ -52,7 +53,7 @@ class EmailVerificationService
             return true;
         } catch (\Exception $e) {
             // Log the error
-            \Log::error('Failed to send verification email', [
+            Log::error('Failed to send verification email', [
                 'email' => $email,
                 'error' => $e->getMessage()
             ]);

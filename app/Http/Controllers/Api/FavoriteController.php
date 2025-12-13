@@ -6,21 +6,50 @@ use App\Http\Controllers\Controller;
 use App\Models\Favorite;
 use App\Models\Item;
 use App\Http\Resources\ItemResource;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class FavoriteController extends Controller
 {
     /**
-     * POST /api/favorites/{itemId}
-     * Add an item to favorites
+     * @OA\Post(
+     *     path="/api/favorites/{itemId}",
+     *     tags={"Favorites"},
+     *     summary="Add item to favorites",
+     *     description="Add an item to your favorites list",
+     *     security={{"bearerAuth": {}}},
+     *     @OA\Parameter(
+     *         name="itemId",
+     *         in="path",
+     *         description="Item ID to favorite",
+     *         required=true,
+     *         @OA\Schema(type="integer", example=1)
+     *     ),
+     *     @OA\Response(
+     *         response=201,
+     *         description="Item added to favorites successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="Item added to favorites"),
+     *             @OA\Property(property="data", type="object",
+     *                 @OA\Property(property="favorite_id", type="integer", example=1),
+     *                 @OA\Property(property="item", type="object")
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(response=400, description="Item already favorited or cannot favorite own item"),
+     *     @OA\Response(response=401, description="Unauthorized"),
+     *     @OA\Response(response=404, description="Item not found")
+     * )
      */
     public function store(int $itemId): JsonResponse
     {
         try {
+            /** @var User $user */
             $user = auth()->user();
 
-            // Check if item exists and is available
+            // Check if item exists
             $item = Item::find($itemId);
 
             if (!$item) {
@@ -56,7 +85,7 @@ class FavoriteController extends Controller
                 'item_id' => $itemId,
             ]);
 
-            \Log::info('Item added to favorites', [
+            Log::info('Item added to favorites', [
                 'user_id' => $user->id,
                 'item_id' => $itemId,
             ]);
@@ -71,7 +100,7 @@ class FavoriteController extends Controller
             ], 201);
 
         } catch (\Exception $e) {
-            \Log::error('Error adding item to favorites', [
+            Log::error('Error adding item to favorites', [
                 'user_id' => auth()->id(),
                 'item_id' => $itemId,
                 'error' => $e->getMessage(),
@@ -86,12 +115,35 @@ class FavoriteController extends Controller
     }
 
     /**
-     * DELETE /api/favorites/{itemId}
-     * Remove an item from favorites
+     * @OA\Delete(
+     *     path="/api/favorites/{itemId}",
+     *     tags={"Favorites"},
+     *     summary="Remove item from favorites",
+     *     description="Remove an item from your favorites list",
+     *     security={{"bearerAuth": {}}},
+     *     @OA\Parameter(
+     *         name="itemId",
+     *         in="path",
+     *         description="Item ID to unfavorite",
+     *         required=true,
+     *         @OA\Schema(type="integer", example=1)
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Item removed from favorites successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="Item removed from favorites")
+     *         )
+     *     ),
+     *     @OA\Response(response=401, description="Unauthorized"),
+     *     @OA\Response(response=404, description="Item not found in favorites")
+     * )
      */
     public function destroy(int $itemId): JsonResponse
     {
         try {
+            /** @var User $user */
             $user = auth()->user();
 
             // Find the favorite
@@ -109,7 +161,7 @@ class FavoriteController extends Controller
             // Delete the favorite
             $favorite->delete();
 
-            \Log::info('Item removed from favorites', [
+            Log::info('Item removed from favorites', [
                 'user_id' => $user->id,
                 'item_id' => $itemId,
             ]);
@@ -120,7 +172,7 @@ class FavoriteController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            \Log::error('Error removing item from favorites', [
+            Log::error('Error removing item from favorites', [
                 'user_id' => auth()->id(),
                 'item_id' => $itemId,
                 'error' => $e->getMessage(),
@@ -135,12 +187,32 @@ class FavoriteController extends Controller
     }
 
     /**
-     * GET /api/favorites
-     * Get all favorites for the authenticated user
+     * @OA\Get(
+     *     path="/api/favorites",
+     *     tags={"Favorites"},
+     *     summary="Get user's favorites",
+     *     description="Get all items favorited by the authenticated user",
+     *     security={{"bearerAuth": {}}},
+     *     @OA\Response(
+     *         response=200,
+     *         description="Favorites retrieved successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="data", type="array",
+     *                 @OA\Items(type="object")
+     *             ),
+     *             @OA\Property(property="meta", type="object",
+     *                 @OA\Property(property="total", type="integer", example=5)
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(response=401, description="Unauthorized")
+     * )
      */
     public function index(): JsonResponse
     {
         try {
+            /** @var User $user */
             $user = auth()->user();
 
             // Get user's favorites with item details
@@ -176,7 +248,7 @@ class FavoriteController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            \Log::error('Error fetching favorites', [
+            Log::error('Error fetching favorites', [
                 'user_id' => auth()->id(),
                 'error' => $e->getMessage(),
             ]);

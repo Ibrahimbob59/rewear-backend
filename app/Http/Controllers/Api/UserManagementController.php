@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
@@ -38,9 +39,10 @@ class UserManagementController extends Controller
      *     @OA\Response(response=422, description="Validation error")
      * )
      */
-    public function deleteSelfAccount(Request $request)
+    public function deleteSelfAccount(Request $request): JsonResponse
     {
         try {
+            /** @var User $user */
             $user = auth()->user();
 
             Log::info('User account deletion attempt', [
@@ -148,9 +150,10 @@ class UserManagementController extends Controller
      *     @OA\Response(response=404, description="User not found")
      * )
      */
-    public function deleteUserByAdmin(Request $request, int $userId)
+    public function deleteUserByAdmin(Request $request, int $userId): JsonResponse
     {
         try {
+            /** @var User $admin */
             $admin = auth()->user();
 
             Log::info('Admin user deletion attempt', [
@@ -291,7 +294,7 @@ class UserManagementController extends Controller
      *     @OA\Response(response=403, description="Forbidden - Not an admin")
      * )
      */
-    public function getAllUsers(Request $request)
+    public function getAllUsers(Request $request): JsonResponse
     {
         try {
             Log::info('Admin viewing users list', [

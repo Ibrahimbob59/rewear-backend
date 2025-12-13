@@ -8,6 +8,7 @@ use App\Http\Requests\Auth\RegisterRequest;
 use App\Http\Requests\Auth\ResendCodeRequest;
 use App\Services\AuthService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
 
@@ -63,7 +64,7 @@ class RegisterController extends Controller
                 'message' => $e->getMessage(),
             ], 429);
         } catch (\Exception $e) {
-            \Log::error('Failed to send verification code', [
+            Log::error('Failed to send verification code', [
                 'email' => $request->input('email'),
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
@@ -124,7 +125,7 @@ class RegisterController extends Controller
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
-            \Log::error('Registration failed', [
+            Log::error('Registration failed', [
                 'email' => $request->validated()['email'] ?? null,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
@@ -174,7 +175,7 @@ class RegisterController extends Controller
                 'message' => $e->getMessage(),
             ], 429);
         } catch (\Exception $e) {
-            \Log::error('Failed to resend verification code', [
+            Log::error('Failed to resend verification code', [
                 'email' => $request->input('email'),
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),

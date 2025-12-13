@@ -3,18 +3,49 @@
 namespace App\Services;
 
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Kreait\Firebase\Factory;
+use Kreait\Firebase\Storage as FirebaseStorage;
+use Google\Cloud\Storage\StorageClient;
 
+/**
+ * Firebase Storage Service
+ *
+ * Handles image uploads to Firebase Cloud Storage
+ * Requires: composer require kreait/firebase-php
+ */
 class FirebaseStorageService
 {
+    protected $storage;
+    protected $bucket;
+    protected $bucketName;
+
+    public function __construct()
+    {
+        try {
+            // Initialize Firebase
+            $factory = (new Factory)
+                ->withServiceAccount(config('firebase.credentials.file'))
+                ->withDefaultStorageBucket(config('firebase.storage.bucket'));
+
+            $this->storage = $factory->createStorage();
+            $this->bucket = $this->storage->getBucket();
+            $this->bucketName = config('firebase.storage.bucket');
+        } catch (\Exception $e) {
+            Log::error('Failed to initialize Firebase Storage', [
+                'error' => $e->getMessage(),
+            ]);
+            throw new \Exception('Firebase Storage initialization failed: ' . $e->getMessage());
+        }
+    }
+
     /**
-     * Upload multiple item images to storage
+     * Upload multiple item images to Firebase Storage
      *
      * @param array $images Array of UploadedFile instances
      * @param int $itemId
-     * @return array Array of image data
+     * @return array Array of image data with Firebase URLs
      */
     public function uploadItemImages(array $images, int $itemId): array
     {
@@ -27,12 +58,12 @@ class FirebaseStorageService
                     $uploadedImages[] = $imageData;
                 }
             } catch (\Exception $e) {
-                Log::error('Failed to upload image', [
+                Log::error('Failed to upload image to Firebase', [
                     'item_id' => $itemId,
                     'index' => $index,
-                    'error' => $e->getMessage()
+                    'error' => $e->getMessage(),
                 ]);
-                // Continue with other images
+                // Continue with other images even if one fails
             }
         }
 
@@ -40,7 +71,7 @@ class FirebaseStorageService
     }
 
     /**
-     * Upload a single image
+     * Upload a single image to Firebase Storage
      *
      * @param UploadedFile $image
      * @param int $itemId
@@ -51,39 +82,56 @@ class FirebaseStorageService
     {
         // Validate image
         if (!$this->isValidImage($image)) {
-            return null;
+            throw new \Exception('Invalid image file');
         }
 
         // Generate unique filename
         $filename = $this->generateFilename($image, $itemId);
 
-        // Define storage path
-        $path = "items/{$itemId}/{$filename}";
+        // Define Firebase storage path
+        $firebasePath = "items/{$itemId}/{$filename}";
 
-        // For now, store locally (can be replaced with Firebase SDK later)
-        // Using public disk for easy access
-        $storedPath = Storage::disk('public')->putFileAs(
-            "items/{$itemId}",
-            $image,
-            $filename
-        );
+        // Get file contents
+        $fileContents = file_get_contents($image->getRealPath());
 
-        if (!$storedPath) {
-            return null;
-        }
+        // Upload to Firebase
+        $object = $this->bucket->upload($fileContents, [
+            'name' => $firebasePath,
+            'metadata' => [
+                'contentType' => $image->getMimeType(),
+                'metadata' => [
+                    'itemId' => (string)$itemId,
+                    'originalName' => $image->getClientOriginalName(),
+                    'uploadedAt' => now()->toIso8601String(),
+                ]
+            ]
+        ]);
 
-        // Generate URL
-        $url = Storage::disk('public')->url($storedPath);
+        // Make the file publicly accessible
+        $object->update([
+            'acl' => [],
+        ], [
+            'predefinedAcl' => 'publicRead'
+        ]);
+
+        // Get public URL
+        $publicUrl = $this->getPublicUrl($firebasePath);
+
+        Log::info('Image uploaded to Firebase successfully', [
+            'item_id' => $itemId,
+            'path' => $firebasePath,
+            'url' => $publicUrl,
+        ]);
 
         return [
-            'image_url' => $url,
+            'image_url' => $publicUrl,
             'display_order' => $index,
             'is_primary' => $index === 0, // First image is primary
         ];
     }
 
     /**
-     * Delete an image from storage
+     * Delete an image from Firebase Storage
      *
      * @param string $imageUrl
      * @return bool
@@ -94,15 +142,25 @@ class FirebaseStorageService
             // Extract path from URL
             $path = $this->extractPathFromUrl($imageUrl);
 
-            if ($path && Storage::disk('public')->exists($path)) {
-                return Storage::disk('public')->delete($path);
+            if (!$path) {
+                Log::warning('Could not extract path from URL', ['url' => $imageUrl]);
+                return false;
             }
 
-            return true; // Already deleted or doesn't exist
+            // Delete from Firebase
+            $object = $this->bucket->object($path);
+
+            if ($object->exists()) {
+                $object->delete();
+                Log::info('Image deleted from Firebase', ['path' => $path]);
+                return true;
+            }
+
+            return true; // Already deleted
         } catch (\Exception $e) {
-            Log::error('Failed to delete image', [
+            Log::error('Failed to delete image from Firebase', [
                 'url' => $imageUrl,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
             return false;
         }
@@ -117,17 +175,24 @@ class FirebaseStorageService
     public function deleteItemImages(int $itemId): bool
     {
         try {
-            $directory = "items/{$itemId}";
+            $prefix = "items/{$itemId}/";
 
-            if (Storage::disk('public')->exists($directory)) {
-                return Storage::disk('public')->deleteDirectory($directory);
+            // List all objects with this prefix
+            $objects = $this->bucket->objects([
+                'prefix' => $prefix,
+            ]);
+
+            // Delete each object
+            foreach ($objects as $object) {
+                $object->delete();
             }
 
+            Log::info('All images deleted for item', ['item_id' => $itemId]);
             return true;
         } catch (\Exception $e) {
-            Log::error('Failed to delete item images', [
+            Log::error('Failed to delete item images from Firebase', [
                 'item_id' => $itemId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
             return false;
         }
@@ -141,7 +206,7 @@ class FirebaseStorageService
      */
     protected function isValidImage(UploadedFile $image): bool
     {
-        // Check if it's an image
+        // Check if file is valid
         if (!$image->isValid()) {
             return false;
         }
@@ -178,30 +243,94 @@ class FirebaseStorageService
     }
 
     /**
-     * Extract storage path from URL
+     * Get public URL for a Firebase Storage object
+     *
+     * @param string $path
+     * @return string
+     */
+    protected function getPublicUrl(string $path): string
+    {
+        // Firebase Storage public URL format
+        return sprintf(
+            'https://firebasestorage.googleapis.com/v0/b/%s/o/%s?alt=media',
+            $this->bucketName,
+            urlencode($path)
+        );
+    }
+
+    /**
+     * Extract storage path from Firebase URL
      *
      * @param string $url
      * @return string|null
      */
     protected function extractPathFromUrl(string $url): ?string
     {
-        // For local storage: extract path after 'storage/'
-        if (strpos($url, 'storage/') !== false) {
-            $parts = explode('storage/', $url);
-            return $parts[1] ?? null;
+        // Parse Firebase Storage URL
+        // Format: https://firebasestorage.googleapis.com/v0/b/{bucket}/o/{path}?alt=media
+
+        if (preg_match('/\/o\/(.+?)\?alt=media/', $url, $matches)) {
+            return urldecode($matches[1]);
         }
 
         return null;
     }
 
     /**
-     * Get image URL (for compatibility)
+     * Get signed URL (for temporary access)
      *
      * @param string $path
+     * @param int $expirationMinutes
      * @return string
      */
-    public function getImageUrl(string $path): string
+    public function getSignedUrl(string $path, int $expirationMinutes = 60): string
     {
-        return Storage::disk('public')->url($path);
+        $object = $this->bucket->object($path);
+
+        $expiresAt = new \DateTime();
+        $expiresAt->add(new \DateInterval("PT{$expirationMinutes}M"));
+
+        return $object->signedUrl($expiresAt);
+    }
+
+    /**
+     * Check if object exists in Firebase Storage
+     *
+     * @param string $path
+     * @return bool
+     */
+    public function exists(string $path): bool
+    {
+        try {
+            $object = $this->bucket->object($path);
+            return $object->exists();
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Get object metadata
+     *
+     * @param string $path
+     * @return array|null
+     */
+    public function getMetadata(string $path): ?array
+    {
+        try {
+            $object = $this->bucket->object($path);
+
+            if (!$object->exists()) {
+                return null;
+            }
+
+            return $object->info();
+        } catch (\Exception $e) {
+            Log::error('Failed to get object metadata', [
+                'path' => $path,
+                'error' => $e->getMessage(),
+            ]);
+            return null;
+        }
     }
 }
