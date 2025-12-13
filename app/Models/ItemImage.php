@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ItemImage extends Model
 {
@@ -23,33 +24,29 @@ class ItemImage extends Model
         'updated_at' => 'datetime',
     ];
 
-    public $timestamps = true;
+    // ==================== RELATIONSHIPS ====================
 
     /**
-     * Get the item that owns this image
+     * Get the item this image belongs to
      */
-    public function item()
+    public function item(): BelongsTo
     {
         return $this->belongsTo(Item::class);
     }
 
-    /**
-     * Scope for primary image
-     */
-    public function scopePrimary($query)
-    {
-        return $query->where('is_primary', true);
-    }
+    // ==================== HELPER METHODS ====================
 
     /**
-     * Set as primary image
+     * Set this image as primary
      */
-    public function setAsPrimary()
+    public function setAsPrimary(): void
     {
-        // Remove primary flag from other images
-        $this->item->images()->update(['is_primary' => false]);
-        
-        // Set this as primary
+        // Unset all other primary images for this item
+        ItemImage::where('item_id', $this->item_id)
+            ->where('id', '!=', $this->id)
+            ->update(['is_primary' => false]);
+
+        // Set this one as primary
         $this->update(['is_primary' => true]);
     }
 }

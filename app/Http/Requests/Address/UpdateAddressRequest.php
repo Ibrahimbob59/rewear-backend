@@ -6,72 +6,34 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateAddressRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
-        // Authorization handled in controller (address ownership check)
-        return auth()->check();
+        return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     */
     public function rules(): array
     {
         return [
-            'label' => ['sometimes', 'nullable', 'string', 'max:50'],
-            'full_name' => ['sometimes', 'nullable', 'string', 'max:255'],
-            'phone' => ['sometimes', 'nullable', 'string', 'max:20'],
-            'address_line1' => ['sometimes', 'required', 'string', 'max:500'],
-            'address_line2' => ['sometimes', 'nullable', 'string', 'max:500'],
-            'city' => ['sometimes', 'required', 'string', 'max:100'],
-            'state' => ['sometimes', 'nullable', 'string', 'max:100'],
-            'postal_code' => ['sometimes', 'nullable', 'string', 'max:20'],
-            'country' => ['sometimes', 'required', 'string', 'max:100'],
-            'latitude' => ['sometimes', 'nullable', 'numeric', 'between:-90,90'],
-            'longitude' => ['sometimes', 'nullable', 'numeric', 'between:-180,180'],
-            'is_default' => ['sometimes', 'boolean'],
+            'label' => 'sometimes|string|max:50',
+            'full_name' => 'sometimes|string|max:255',
+            'phone' => 'sometimes|string|max:20',
+            'address_line1' => 'sometimes|string|max:500',
+            'address_line2' => 'nullable|string|max:500',
+            'city' => 'sometimes|string|max:100',
+            'state' => 'nullable|string|max:100',
+            'postal_code' => 'nullable|string|max:20',
+            'country' => 'sometimes|string|max:100',
+            'latitude' => 'nullable|numeric|between:-90,90',
+            'longitude' => 'nullable|numeric|between:-180,180',
+            'is_default' => 'sometimes|boolean',
         ];
     }
 
-    /**
-     * Get custom messages for validator errors.
-     */
     public function messages(): array
     {
         return [
-            'label.max' => 'Address label cannot exceed 50 characters',
-            'full_name.max' => 'Full name cannot exceed 255 characters',
-            'phone.max' => 'Phone number cannot exceed 20 characters',
-            'address_line1.required' => 'Address line 1 is required',
-            'address_line1.max' => 'Address line 1 cannot exceed 500 characters',
-            'address_line2.max' => 'Address line 2 cannot exceed 500 characters',
-            'city.required' => 'City is required',
-            'city.max' => 'City name cannot exceed 100 characters',
-            'state.max' => 'State name cannot exceed 100 characters',
-            'postal_code.max' => 'Postal code cannot exceed 20 characters',
-            'country.required' => 'Country is required',
-            'country.max' => 'Country name cannot exceed 100 characters',
-            'latitude.numeric' => 'Latitude must be a number',
-            'latitude.between' => 'Latitude must be between -90 and 90',
-            'longitude.numeric' => 'Longitude must be a number',
-            'longitude.between' => 'Longitude must be between -180 and 180',
-            'is_default.boolean' => 'Invalid default flag',
+            'latitude.between' => 'Invalid latitude value',
+            'longitude.between' => 'Invalid longitude value',
         ];
-    }
-
-    /**
-     * Prepare the data for validation.
-     */
-    protected function prepareForValidation(): void
-    {
-        // Convert boolean if present
-        if ($this->has('is_default')) {
-            $this->merge([
-                'is_default' => filter_var($this->is_default, FILTER_VALIDATE_BOOLEAN),
-            ]);
-        }
     }
 }

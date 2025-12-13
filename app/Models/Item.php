@@ -5,7 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Item extends Model
 {
@@ -38,284 +39,104 @@ class Item extends Model
         'deleted_at' => 'datetime',
     ];
 
-    protected $hidden = [
-        'deleted_at',
-    ];
-
-    protected $appends = [
-        'is_favorited',
-        'favorites_count',
-        'main_image',
-    ];
-
     // ==================== RELATIONSHIPS ====================
 
     /**
-     * Get the seller who owns this item
+     * Get the seller (user) of this item
      */
-    public function seller()
+    public function seller(): BelongsTo
     {
         return $this->belongsTo(User::class, 'seller_id');
     }
 
     /**
-     * Get all images for this item
+     * Get the item images
      */
-    public function images()
+    public function images(): HasMany
     {
         return $this->hasMany(ItemImage::class)->orderBy('display_order');
     }
 
     /**
-     * Get the first/main image
+     * Get the orders for this item
      */
-    public function mainImage()
-    {
-        return $this->hasOne(ItemImage::class)->orderBy('display_order');
-    }
-
-    /**
-     * Get all users who favorited this item
-     */
-    public function favoritedBy()
-    {
-        return $this->belongsToMany(User::class, 'favorites')->withTimestamps();
-    }
-
-    /**
-     * Get favorites for this item
-     */
-    public function favorites()
-    {
-        return $this->hasMany(Favorite::class);
-    }
-
-    /**
-     * Get orders for this item
-     */
-    public function orders()
+    public function orders(): HasMany
     {
         return $this->hasMany(Order::class);
     }
 
-    // ==================== ACCESSORS ====================
-
     /**
-     * Check if current user has favorited this item
+     * Get users who favorited this item
      */
-    public function getIsFavoritedAttribute()
+    public function favorites(): HasMany
     {
-        if (!auth()->check()) {
-            return false;
-        }
-
-        return $this->favoritedBy()->where('user_id', auth()->id())->exists();
-    }
-
-    /**
-     * Get favorites count
-     */
-    public function getFavoritesCountAttribute()
-    {
-        return $this->favorites()->count();
-    }
-
-    /**
-     * Get main image URL
-     */
-    public function getMainImageAttribute()
-    {
-        return $this->mainImage?->image_url;
-    }
-
-    /**
-     * Get formatted price (null for donations)
-     */
-    public function getFormattedPriceAttribute()
-    {
-        if ($this->is_donation) {
-            return 'Donation';
-        }
-
-        return $this->price ? '$' . number_format($this->price, 2) : '$0.00';
+        return $this->hasMany(Favorite::class);
     }
 
     // ==================== QUERY SCOPES ====================
 
     /**
-     * Scope for available items (not sold/cancelled/pending)
+     * Scope for available items only
      */
-    public function scopeAvailable(Builder $query)
+    public function scopeAvailable($query)
     {
         return $query->where('status', 'available');
     }
 
     /**
-     * Scope for items belonging to a specific seller
-     */
-    public function scopeBySeller(Builder $query, $sellerId)
-    {
-        return $query->where('seller_id', $sellerId);
-    }
-
-    /**
-     * Scope for filtering by category
-     */
-    public function scopeByCategory(Builder $query, $category)
-    {
-        if (empty($category)) {
-            return $query;
-        }
-
-        return $query->where('category', $category);
-    }
-
-    /**
-     * Scope for filtering by price range
-     */
-    public function scopeByPriceRange(Builder $query, $minPrice = null, $maxPrice = null)
-    {
-        if ($minPrice !== null) {
-            $query->where('price', '>=', $minPrice);
-        }
-
-        if ($maxPrice !== null) {
-            $query->where('price', '<=', $maxPrice);
-        }
-
-        return $query;
-    }
-
-    /**
-     * Scope for filtering by size
-     */
-    public function scopeBySize(Builder $query, $size)
-    {
-        if (empty($size)) {
-            return $query;
-        }
-
-        return $query->where('size', $size);
-    }
-
-    /**
-     * Scope for filtering by condition
-     */
-    public function scopeByCondition(Builder $query, $condition)
-    {
-        if (empty($condition)) {
-            return $query;
-        }
-
-        return $query->where('condition', $condition);
-    }
-
-    /**
-     * Scope for filtering by gender
-     */
-    public function scopeByGender(Builder $query, $gender)
-    {
-        if (empty($gender)) {
-            return $query;
-        }
-
-        return $query->where('gender', $gender);
-    }
-
-    /**
      * Scope for donation items
      */
-    public function scopeDonations(Builder $query)
+    public function scopeDonations($query)
     {
         return $query->where('is_donation', true);
     }
 
     /**
-     * Scope for sale items (not donations)
+     * Scope for sale items
      */
-    public function scopeForSale(Builder $query)
+    public function scopeForSale($query)
     {
         return $query->where('is_donation', false);
     }
 
     /**
-     * Scope for searching by keyword
+     * Scope for specific category
      */
-    public function scopeSearch(Builder $query, $keyword)
+    public function scopeCategory($query, string $category)
     {
-        if (empty($keyword)) {
-            return $query;
-        }
-
-        return $query->where(function ($q) use ($keyword) {
-            $q->where('title', 'ILIKE', "%{$keyword}%")
-              ->orWhere('description', 'ILIKE', "%{$keyword}%")
-              ->orWhere('brand', 'ILIKE', "%{$keyword}%")
-              ->orWhere('color', 'ILIKE', "%{$keyword}%");
-        });
+        return $query->where('category', $category);
     }
 
     /**
-     * Scope for items near a location (using Haversine formula)
-     * 
-     * @param Builder $query
-     * @param float $latitude User's latitude
-     * @param float $longitude User's longitude
-     * @param float $radiusKm Radius in kilometers
+     * Scope for seller's items
      */
-    public function scopeNearby(Builder $query, $latitude, $longitude, $radiusKm = 50)
+    public function scopeForSeller($query, int $sellerId)
     {
-        // Haversine formula for distance calculation
-        // Distance in kilometers
-        $haversine = "(6371 * acos(cos(radians(?)) * cos(radians(users.location_lat)) * cos(radians(users.location_lng) - radians(?)) + sin(radians(?)) * sin(radians(users.location_lat))))";
+        return $query->where('seller_id', $sellerId);
+    }
 
-        return $query->join('users', 'items.seller_id', '=', 'users.id')
-            ->whereNotNull('users.location_lat')
-            ->whereNotNull('users.location_lng')
-            ->whereRaw("{$haversine} <= ?", [$latitude, $longitude, $latitude, $radiusKm])
-            ->select('items.*')
-            ->selectRaw("{$haversine} AS distance", [$latitude, $longitude, $latitude]);
+    // ==================== HELPER METHODS ====================
+
+    /**
+     * Check if item is available
+     */
+    public function isAvailable(): bool
+    {
+        return $this->status === 'available';
     }
 
     /**
-     * Scope for sorting
+     * Mark item as pending
      */
-    public function scopeSorted(Builder $query, $sort = 'newest')
+    public function markAsPending(): void
     {
-        switch ($sort) {
-            case 'price_low':
-                return $query->orderBy('price', 'asc');
-            
-            case 'price_high':
-                return $query->orderBy('price', 'desc');
-            
-            case 'distance':
-                // Distance should be already calculated in nearby scope
-                return $query->orderBy('distance', 'asc');
-            
-            case 'oldest':
-                return $query->orderBy('created_at', 'asc');
-            
-            case 'newest':
-            default:
-                return $query->orderBy('created_at', 'desc');
-        }
-    }
-
-    // ==================== METHODS ====================
-
-    /**
-     * Increment view count
-     */
-    public function incrementViews()
-    {
-        $this->increment('views_count');
+        $this->update(['status' => 'pending']);
     }
 
     /**
      * Mark item as sold
      */
-    public function markAsSold()
+    public function markAsSold(): void
     {
         $this->update([
             'status' => 'sold',
@@ -326,7 +147,7 @@ class Item extends Model
     /**
      * Mark item as donated
      */
-    public function markAsDonated()
+    public function markAsDonated(): void
     {
         $this->update([
             'status' => 'donated',
@@ -335,9 +156,9 @@ class Item extends Model
     }
 
     /**
-     * Mark item as available
+     * Mark item as available again
      */
-    public function markAsAvailable()
+    public function markAsAvailable(): void
     {
         $this->update([
             'status' => 'available',
@@ -346,46 +167,27 @@ class Item extends Model
     }
 
     /**
-     * Mark item as pending (during order)
+     * Get primary image
      */
-    public function markAsPending()
+    public function getPrimaryImageAttribute(): ?string
     {
-        $this->update([
-            'status' => 'pending',
-        ]);
+        return $this->images->where('is_primary', true)->first()?->image_url
+            ?? $this->images->sortBy('display_order')->first()?->image_url;
     }
 
     /**
-     * Cancel item (make unavailable)
+     * Check if user is the seller
      */
-    public function cancel()
+    public function isOwnedBy(int $userId): bool
     {
-        $this->update([
-            'status' => 'cancelled',
-        ]);
+        return $this->seller_id === $userId;
     }
 
     /**
-     * Check if item is available for purchase
+     * Check if item is favorited by user
      */
-    public function isAvailable()
+    public function isFavoritedBy(int $userId): bool
     {
-        return $this->status === 'available';
-    }
-
-    /**
-     * Check if user owns this item
-     */
-    public function isOwnedBy($userId)
-    {
-        return $this->seller_id == $userId;
-    }
-
-    /**
-     * Check if item can be edited/deleted
-     */
-    public function canBeModified()
-    {
-        return in_array($this->status, ['available', 'cancelled']);
+        return $this->favorites()->where('user_id', $userId)->exists();
     }
 }

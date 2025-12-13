@@ -3,13 +3,13 @@
 return [
     /*
     |--------------------------------------------------------------------------
-    | Firebase Credentials
+    | Firebase API Key (Web API Key)
     |--------------------------------------------------------------------------
     |
-    | Path to your Firebase service account credentials JSON file
+    | Get this from Firebase Console → Project Settings → Web API Key
     |
     */
-    'credentials' => env('FIREBASE_CREDENTIALS', storage_path('firebase-credentials.json')),
+    'api_key' => env('FIREBASE_API_KEY'),
 
     /*
     |--------------------------------------------------------------------------
@@ -19,20 +19,7 @@ return [
     | Your Firebase storage bucket name (e.g., your-project.appspot.com)
     |
     */
-    'storage_bucket' => env('FIREBASE_STORAGE_BUCKET', ''),
-
-    /*
-    |--------------------------------------------------------------------------
-    | Storage Path
-    |--------------------------------------------------------------------------
-    |
-    | Base path for storing files in Firebase Storage
-    |
-    */
-    'storage_path' => [
-        'items' => 'items', // items/{itemId}/{filename}
-        'temp' => 'temp',   // temporary uploads
-    ],
+    'storage_bucket' => env('FIREBASE_STORAGE_BUCKET'),
 
     /*
     |--------------------------------------------------------------------------
@@ -45,21 +32,12 @@ return [
         'allowed_extensions' => ['jpg', 'jpeg', 'png', 'webp'],
         'max_count' => 6,
         'min_count' => 1,
-        
-        // Resize settings (optional)
+
+        // Resize settings
         'resize' => [
-            'enabled' => true,
-            'max_width' => 1920,
-            'max_height' => 1920,
+            'max_width' => 1200,
+            'max_height' => 1200,
             'quality' => 85,
-        ],
-        
-        // Thumbnail settings
-        'thumbnail' => [
-            'enabled' => true,
-            'width' => 400,
-            'height' => 400,
-            'quality' => 80,
         ],
     ],
 ];

@@ -20,12 +20,6 @@ class ItemController extends Controller
     public function __construct(ItemService $itemService)
     {
         $this->itemService = $itemService;
-        
-        // Apply auth middleware
-        $this->middleware('auth:api')->except(['index', 'show']);
-        
-        // Apply item ownership middleware for update/delete
-        $this->middleware('item.ownership')->only(['update', 'destroy']);
     }
 
     /**
@@ -35,21 +29,32 @@ class ItemController extends Controller
     public function index(ItemFilterRequest $request): JsonResponse
     {
         try {
-            $filters = $request->getFilters();
-            $perPage = $request->getPagination();
-            
+            $filters = $request->validated();
+            $perPage = $request->input('per_page', 15);
+
             $items = $this->itemService->getItems($filters, $perPage);
-            
+
             return response()->json([
                 'success' => true,
                 'message' => 'Items retrieved successfully',
                 'data' => new ItemCollection($items),
+                'meta' => [
+                    'current_page' => $items->currentPage(),
+                    'total' => $items->total(),
+                    'per_page' => $items->perPage(),
+                    'last_page' => $items->lastPage(),
+                ],
             ]);
         } catch (\Exception $e) {
+            \Log::error('Failed to retrieve items', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to retrieve items',
-                'error' => $e->getMessage(),
+                'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }
     }
@@ -61,191 +66,239 @@ class ItemController extends Controller
     public function show(int $id): JsonResponse
     {
         try {
-            $item = $this->itemService->getItemById($id);
-            
+            $item = $this->itemService->getItemById($id, true);
+
             if (!$item) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Item not found',
                 ], 404);
             }
-            
-            // Increment view count (async or skip if same user)
-            if (!auth()->check() || $item->seller_id !== auth()->id()) {
-                $this->itemService->incrementViews($item);
-            }
-            
+
+            // Check if item belongs to current user (for is_owner flag)
+            $isOwner = auth()->check() && auth()->id() === $item->seller_id;
+
             return response()->json([
                 'success' => true,
                 'message' => 'Item retrieved successfully',
                 'data' => new ItemResource($item),
+                'meta' => [
+                    'is_owner' => $isOwner,
+                ],
             ]);
         } catch (\Exception $e) {
+            \Log::error('Failed to retrieve item', [
+                'item_id' => $id,
+                'error' => $e->getMessage(),
+            ]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to retrieve item',
-                'error' => $e->getMessage(),
+                'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }
     }
 
     /**
      * POST /api/items
-     * Create new item listing
+     * Create a new item listing
      */
     public function store(CreateItemRequest $request): JsonResponse
     {
         try {
             $data = $request->validated();
             $images = $request->file('images', []);
-            
-            $item = $this->itemService->createItem($data, $images, auth()->user());
-            
+            $user = auth()->user();
+
+            $item = $this->itemService->createItem($data, $images, $user);
+
             return response()->json([
                 'success' => true,
                 'message' => 'Item created successfully',
                 'data' => new ItemResource($item),
             ], 201);
         } catch (\Exception $e) {
+            \Log::error('Failed to create item', [
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to create item',
-                'error' => $e->getMessage(),
+                'error' => config('app.debug') ? $e->getMessage() : 'An error occurred while creating your listing',
             ], 500);
         }
     }
 
     /**
      * PUT /api/items/{id}
-     * Update item listing
+     * Update an item
      */
-    public function update(UpdateItemRequest $request, Item $item): JsonResponse
+    public function update(UpdateItemRequest $request, int $id): JsonResponse
     {
         try {
-            // Ownership check is done by middleware
-            
-            // Check if item can be modified
-            if (!$item->canBeModified()) {
+            $item = Item::findOrFail($id);
+
+            // Authorization check (must be owner)
+            if ($item->seller_id !== auth()->id()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Item cannot be modified in current status',
-                ], 422);
+                    'message' => 'Unauthorized to update this item',
+                ], 403);
             }
-            
+
+            // Cannot update if item is not available
+            if ($item->status !== 'available') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cannot update item that is not available',
+                ], 400);
+            }
+
             $data = $request->validated();
             $newImages = $request->file('images', []);
-            
-            $item = $this->itemService->updateItem($item, $data, $newImages);
-            
+
+            $updatedItem = $this->itemService->updateItem($item, $data, $newImages);
+
             return response()->json([
                 'success' => true,
                 'message' => 'Item updated successfully',
-                'data' => new ItemResource($item),
+                'data' => new ItemResource($updatedItem),
             ]);
         } catch (\Exception $e) {
+            \Log::error('Failed to update item', [
+                'item_id' => $id,
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+            ]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update item',
-                'error' => $e->getMessage(),
+                'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }
     }
 
     /**
      * DELETE /api/items/{id}
-     * Delete item listing
+     * Delete an item (soft delete)
      */
-    public function destroy(Item $item): JsonResponse
+    public function destroy(int $id): JsonResponse
     {
         try {
-            // Ownership check is done by middleware
-            
-            // Check if item can be deleted
-            if (!$item->canBeModified()) {
+            $item = Item::findOrFail($id);
+
+            // Authorization check (must be owner)
+            if ($item->seller_id !== auth()->id()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Item cannot be deleted in current status',
-                ], 422);
+                    'message' => 'Unauthorized to delete this item',
+                ], 403);
             }
-            
+
+            // Cannot delete if item has active orders
+            if (in_array($item->status, ['pending', 'sold', 'donated'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cannot delete item with active orders',
+                ], 400);
+            }
+
             $this->itemService->deleteItem($item);
-            
+
             return response()->json([
                 'success' => true,
                 'message' => 'Item deleted successfully',
             ]);
         } catch (\Exception $e) {
+            \Log::error('Failed to delete item', [
+                'item_id' => $id,
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+            ]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to delete item',
-                'error' => $e->getMessage(),
+                'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }
     }
 
     /**
      * GET /api/items/my-listings
-     * Get user's own listings
+     * Get current user's listings
      */
     public function myListings(Request $request): JsonResponse
     {
         try {
-            $status = $request->query('status'); // Filter by status
-            $perPage = $request->query('per_page', 20);
-            
-            $query = auth()->user()->items()->with(['images'])->latest();
-            
-            if ($status) {
-                $query->where('status', $status);
-            }
-            
-            $items = $query->paginate($perPage);
-            
+            $perPage = $request->input('per_page', 15);
+            $items = $this->itemService->getUserListings(auth()->id(), $perPage);
+
             return response()->json([
                 'success' => true,
-                'message' => 'Listings retrieved successfully',
+                'message' => 'Your listings retrieved successfully',
                 'data' => new ItemCollection($items),
+                'meta' => [
+                    'current_page' => $items->currentPage(),
+                    'total' => $items->total(),
+                    'per_page' => $items->perPage(),
+                    'last_page' => $items->lastPage(),
+                ],
             ]);
         } catch (\Exception $e) {
+            \Log::error('Failed to retrieve user listings', [
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+            ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to retrieve listings',
-                'error' => $e->getMessage(),
+                'message' => 'Failed to retrieve your listings',
+                'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }
     }
 
     /**
-     * PATCH /api/items/{id}/status
-     * Toggle item status (available/cancelled)
+     * POST /api/items/{id}/toggle-status
+     * Toggle item status between available and sold
      */
-    public function toggleStatus(Request $request, Item $item): JsonResponse
+    public function toggleStatus(int $id): JsonResponse
     {
         try {
-            // Check ownership
-            if (!$item->isOwnedBy(auth()->id())) {
+            $item = Item::findOrFail($id);
+
+            // Authorization check (must be owner)
+            if ($item->seller_id !== auth()->id()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Unauthorized action',
+                    'message' => 'Unauthorized to update this item',
                 ], 403);
             }
-            
-            $request->validate([
-                'status' => 'required|in:available,cancelled',
-            ]);
-            
-            $item = $this->itemService->toggleStatus($item, $request->status);
-            
+
+            $updatedItem = $this->itemService->toggleStatus($item);
+
             return response()->json([
                 'success' => true,
-                'message' => 'Item status updated successfully',
-                'data' => new ItemResource($item),
+                'message' => "Item marked as {$updatedItem->status}",
+                'data' => new ItemResource($updatedItem),
             ]);
         } catch (\Exception $e) {
+            \Log::error('Failed to toggle item status', [
+                'item_id' => $id,
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+            ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to update status',
-                'error' => $e->getMessage(),
+                'message' => 'Failed to update item status',
+                'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }
     }

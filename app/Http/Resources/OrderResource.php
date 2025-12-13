@@ -9,82 +9,18 @@ class OrderResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
-        $user = $request->user();
-        $isBuyer = $this->buyer_id === $user?->id;
-        $isSeller = $this->seller_id === $user?->id;
-        
         return [
             'id' => $this->id,
             'order_number' => $this->order_number,
-            
-            // Item
-            'item' => [
-                'id' => $this->item->id,
-                'title' => $this->item->title,
-                'main_image' => $this->item->main_image,
-                'size' => $this->item->size,
-                'condition' => $this->item->condition,
-                'is_donation' => $this->item->is_donation,
-            ],
-            
-            // Buyer (show to seller only)
-            'buyer' => $this->when($isSeller || !$user, [
-                'id' => $this->buyer->id,
-                'name' => $this->buyer->name,
-                'phone' => $this->buyer->phone,
-            ]),
-            
-            // Seller (show to buyer only)
-            'seller' => $this->when($isBuyer || !$user, [
-                'id' => $this->seller->id,
-                'name' => $this->seller->name,
-                'phone' => $this->seller->phone,
-            ]),
-            
-            // Delivery address
-            'delivery_address' => $this->when($this->deliveryAddress, [
-                'id' => $this->deliveryAddress->id,
-                'full_name' => $this->deliveryAddress->full_name,
-                'phone' => $this->deliveryAddress->phone,
-                'full_address' => $this->deliveryAddress->full_address,
-                'city' => $this->deliveryAddress->city,
-            ]),
-            
+            'status' => $this->status,
+            'payment_method' => $this->payment_method,
+            'payment_status' => $this->payment_status,
+
             // Pricing
             'item_price' => $this->item_price,
             'delivery_fee' => $this->delivery_fee,
             'total_amount' => $this->total_amount,
-            'driver_earnings' => $this->driver_earnings,
-            'platform_commission' => $this->platform_commission,
-            
-            // Status
-            'status' => $this->status,
-            'status_label' => $this->status_label,
-            'payment_method' => $this->payment_method,
-            'payment_status' => $this->payment_status,
-            
-            // Delivery
-            'delivery' => $this->when($this->delivery, [
-                'id' => $this->delivery->id,
-                'status' => $this->delivery->status,
-                'driver' => $this->when($this->delivery->driver, [
-                    'id' => $this->delivery->driver->id,
-                    'name' => $this->delivery->driver->name,
-                    'phone' => $this->delivery->driver->phone,
-                ]),
-            ]),
-            
-            // User role in this order
-            'user_role' => $this->when($user, function () use ($isBuyer, $isSeller) {
-                if ($isBuyer) return 'buyer';
-                if ($isSeller) return 'seller';
-                return null;
-            }),
-            
-            // Actions available
-            'can_cancel' => $this->when($user, $isBuyer && $this->canBeCancelled()),
-            'can_confirm' => $this->when($user, $isSeller && $this->canBeConfirmed()),
-            
+
             // Timestamps
             'confirmed_at' => $this->confirmed_at?->toIso8601String(),
             'delivered_at' => $this->delivered_at?->toIso8601String(),
@@ -93,6 +29,59 @@ class OrderResource extends JsonResource
             'cancellation_reason' => $this->cancellation_reason,
             'created_at' => $this->created_at->toIso8601String(),
             'updated_at' => $this->updated_at->toIso8601String(),
+
+            // Relationships
+            'buyer' => [
+                'id' => $this->buyer->id,
+                'name' => $this->buyer->name,
+                'email' => $this->buyer->email,
+                'city' => $this->buyer->city,
+            ],
+
+            'seller' => [
+                'id' => $this->seller->id,
+                'name' => $this->seller->name,
+                'email' => $this->seller->email,
+                'city' => $this->seller->city,
+            ],
+
+            'item' => [
+                'id' => $this->item->id,
+                'title' => $this->item->title,
+                'description' => $this->item->description,
+                'category' => $this->item->category,
+                'size' => $this->item->size,
+                'condition' => $this->item->condition,
+                'is_donation' => $this->item->is_donation,
+                'primary_image' => $this->item->images->where('is_primary', true)->first()?->image_url
+                    ?? $this->item->images->sortBy('display_order')->first()?->image_url,
+            ],
+
+            'delivery_address' => [
+                'id' => $this->deliveryAddress->id,
+                'full_name' => $this->deliveryAddress->full_name,
+                'phone' => $this->deliveryAddress->phone,
+                'address_line1' => $this->deliveryAddress->address_line1,
+                'address_line2' => $this->deliveryAddress->address_line2,
+                'city' => $this->deliveryAddress->city,
+                'state' => $this->deliveryAddress->state,
+                'postal_code' => $this->deliveryAddress->postal_code,
+                'country' => $this->deliveryAddress->country,
+            ],
+
+            'delivery' => $this->when($this->relationLoaded('delivery') && $this->delivery, [
+                'id' => $this->delivery?->id,
+                'status' => $this->delivery?->status,
+                'distance_km' => $this->delivery?->distance_km,
+                'driver' => $this->when($this->delivery && $this->delivery->driver, [
+                    'id' => $this->delivery?->driver?->id,
+                    'name' => $this->delivery?->driver?->name,
+                    'phone' => $this->delivery?->driver?->phone,
+                ]),
+                'assigned_at' => $this->delivery?->assigned_at?->toIso8601String(),
+                'picked_up_at' => $this->delivery?->picked_up_at?->toIso8601String(),
+                'delivered_at' => $this->delivery?->delivered_at?->toIso8601String(),
+            ]),
         ];
     }
 }

@@ -8,9 +8,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
-use Illuminate\Support\Facades\Storage;
 use Tymon\JWTAuth\Contracts\JWTSubject;
-use App\Models\DriverApplication;
 
 class User extends Authenticatable implements JWTSubject
 {
@@ -18,8 +16,6 @@ class User extends Authenticatable implements JWTSubject
 
     /**
      * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
      */
     protected $fillable = [
         'name',
@@ -50,8 +46,6 @@ class User extends Authenticatable implements JWTSubject
 
     /**
      * The attributes that should be hidden for serialization.
-     *
-     * @var array<int, string>
      */
     protected $hidden = [
         'password',
@@ -60,8 +54,6 @@ class User extends Authenticatable implements JWTSubject
 
     /**
      * The attributes that should be cast.
-     *
-     * @var array<string, string>
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
@@ -77,370 +69,157 @@ class User extends Authenticatable implements JWTSubject
         'password' => 'hashed',
     ];
 
-    /**
-     * Boot method to set default values
-     */
-    protected static function boot()
+    // ==================== JWT METHODS ====================
+
+    public function getJWTIdentifier()
     {
-        parent::boot();
-
-        static::creating(function ($user) {
-            if (empty($user->user_type)) {
-                $user->user_type = 'user';
-            }
-            if (empty($user->is_active)) {
-                $user->is_active = true;
-            }
-        });
-
-        // Delete profile picture when user is deleted
-        static::deleting(function ($user) {
-            if ($user->profile_picture && Storage::disk('public')->exists($user->profile_picture)) {
-                Storage::disk('public')->delete($user->profile_picture);
-            }
-        });
+        return $this->getKey();
     }
 
-    /**
-     * Relationships
-     */
+    public function getJWTCustomClaims()
+    {
+        return [];
+    }
 
-    public function refreshTokens()
+    // ==================== AUTH RELATIONSHIPS ====================
+
+    public function refreshTokens(): HasMany
     {
         return $this->hasMany(RefreshToken::class);
     }
 
-    public function emailVerifications()
+    public function emailVerifications(): HasMany
     {
-        return $this->hasMany(EmailVerification::class);
+        return $this->hasMany(EmailVerification::class, 'email', 'email');
     }
 
-    public function items()
+    // ==================== MARKETPLACE RELATIONSHIPS ====================
+
+    /**
+     * Get items listed by this user (as seller)
+     */
+    public function items(): HasMany
     {
         return $this->hasMany(Item::class, 'seller_id');
     }
 
-    public function orders()
+    /**
+     * Get orders where user is the buyer
+     */
+    public function purchasedOrders(): HasMany
     {
         return $this->hasMany(Order::class, 'buyer_id');
     }
 
-    public function addresses()
+    /**
+     * Get orders where user is the seller
+     */
+    public function soldOrders(): HasMany
+    {
+        return $this->hasMany(Order::class, 'seller_id');
+    }
+
+    /**
+     * Get user's delivery addresses
+     */
+    public function addresses(): HasMany
     {
         return $this->hasMany(Address::class);
     }
 
-    public function driverApplications()
-    {
-        return $this->hasMany(DriverApplication::class);
-    }
-
-    public function deliveriesAsDriver()
-    {
-        return $this->hasMany(Delivery::class, 'driver_id');
-    }
-
-    public function favorites()
+    /**
+     * Get user's favorites
+     */
+    public function favorites(): HasMany
     {
         return $this->hasMany(Favorite::class);
     }
 
-    public function notifications()
+    /**
+     * Get deliveries assigned to this user (as driver)
+     */
+    public function deliveries(): HasMany
+    {
+        return $this->hasMany(Delivery::class, 'driver_id');
+    }
+
+    /**
+     * Get user's notifications
+     */
+    public function notifications(): HasMany
     {
         return $this->hasMany(Notification::class);
     }
 
     /**
-     * Scopes
+     * Get driver application
      */
-
-    public function scopeActive($query)
+    public function driverApplication(): HasMany
     {
-        return $query->where('is_active', true);
+        return $this->hasMany(DriverApplication::class);
     }
 
-    public function scopeVerified($query)
+    // ==================== AUTH HELPER METHODS ====================
+
+    public function hasVerifiedEmail(): bool
     {
-        return $query->whereNotNull('email_verified_at');
+        return !is_null($this->email_verified_at);
     }
 
-    public function scopeCharities($query)
+    public function isLocked(): bool
     {
-        return $query->where('user_type', 'charity');
-    }
-
-    public function scopeDrivers($query)
-    {
-        return $query->where('is_driver', true)
-                     ->where('driver_verified', true);
-    }
-
-    /**
-     * Helper Methods
-     */
-
-    public function isCharity(): bool
-    {
-        return $this->user_type === 'charity';
-    }
-
-    public function isVerifiedDriver(): bool
-    {
-        return $this->is_driver && $this->driver_verified;
+        return $this->locked_until && $this->locked_until->isFuture();
     }
 
     public function incrementLoginAttempts(): void
     {
         $this->increment('login_attempts');
 
-        // Lock account after 5 failed attempts for 30 minutes
         if ($this->login_attempts >= 5) {
-            $this->locked_until = now()->addMinutes(30);
-            $this->save();
+            $this->update(['locked_until' => now()->addMinutes(15)]);
         }
     }
 
     public function resetLoginAttempts(): void
     {
-        $this->login_attempts = 0;
-        $this->locked_until = null;
-        $this->save();
+        $this->update([
+            'login_attempts' => 0,
+            'locked_until' => null,
+            'last_login_at' => now(),
+        ]);
     }
 
-    public function updateLastLogin(): void
-    {
-        $this->last_login_at = now();
-        $this->save();
-    }
+    // ==================== MARKETPLACE HELPER METHODS ====================
 
     /**
-     * Get profile picture URL
+     * Check if user is a verified driver
      */
-    public function getProfilePictureUrlAttribute(): ?string
+    public function isVerifiedDriver(): bool
     {
-        if ($this->profile_picture) {
-            return Storage::disk('public')->url($this->profile_picture);
-        }
-        return null;
+        return $this->is_driver && $this->driver_verified;
     }
-
-    /**
-     * Check if user is admin using Spatie roles
-     */
-    public function isAdmin(): bool
-    {
-        return $this->hasRole('admin');
-    }
-
-    /**
-     * Get full address string
-     */
-    public function getFullAddressAttribute(): ?string
-    {
-        if ($this->address) {
-            return trim($this->address . ', ' . $this->city . ', ' . $this->country);
-        }
-        return null;
-    }
-
-    /**
-     * Check if account is locked
-     */
-    public function isLocked(): bool
-    {
-        return $this->locked_until && $this->locked_until->isFuture();
-    }
-
-    /**
-     * Get the identifier that will be stored in the subject claim of the JWT.
-     *
-     * @return mixed
-     */
-    public function getJWTIdentifier()
-    {
-        return $this->getKey();
-    }
-
-    /**
-     * Return a key value array, containing any custom claims to be added to the JWT.
-     *
-     * @return array
-     */
-    public function getJWTCustomClaims()
-    {
-        return [
-            'email' => $this->email,
-            'user_type' => $this->user_type,
-            'is_driver' => $this->is_driver,
-        ];
-    }
-
-    /**
-     * Get orders where user is buyer
-     */
-    public function purchases()
-    {
-        return $this->hasMany(Order::class, 'buyer_id');
-    }
-
-    /**
-     * Get orders where user is seller
-     */
-    public function sales()
-    {
-        return $this->hasMany(Order::class, 'seller_id');
-    }
-
 
     /**
      * Get user's default address
      */
-    public function defaultAddress()
+    public function getDefaultAddress(): ?Address
     {
-        return $this->hasOne(Address::class)->where('is_default', true);
-    }
-
-
-    /**
-     * Get items favorited by user
-     */
-    public function favoritedItems()
-    {
-        return $this->belongsToMany(Item::class, 'favorites')->withTimestamps();
-    }
-
-
-
-    /**
-     * Get unread notifications
-     */
-    public function unreadNotifications()
-    {
-        return $this->hasMany(Notification::class)->where('is_read', false);
+        return $this->addresses()->where('is_default', true)->first();
     }
 
     /**
-     * Get deliveries assigned to this user (if driver)
+     * Get total items sold
      */
-    public function deliveries()
+    public function getTotalItemsSoldAttribute(): int
     {
-        return $this->hasMany(Delivery::class, 'driver_id');
-    }
-
-    // ==================== NEW METHODS ====================
-
-    /**
-     * Create a notification for this user
-     * 
-     * @param string $title
-     * @param string $message
-     * @param string $type (order, delivery, message, system)
-     * @param string|null $actionUrl
-     * @param array|null $data
-     * @return Notification
-     */
-    public function notify($title, $message, $type = 'system', $actionUrl = null, $data = null)
-    {
-        return $this->notifications()->create([
-            'title' => $title,
-            'message' => $message,
-            'type' => $type,
-            'action_url' => $actionUrl,
-            'data' => $data,
-            'is_read' => false,
-        ]);
+        return $this->soldOrders()->whereIn('status', ['delivered', 'completed'])->count();
     }
 
     /**
-     * Check if user has unread notifications
+     * Get total items purchased
      */
-    public function hasUnreadNotifications()
+    public function getTotalItemsPurchasedAttribute(): int
     {
-        return $this->unreadNotifications()->exists();
+        return $this->purchasedOrders()->whereIn('status', ['delivered', 'completed'])->count();
     }
-
-    /**
-     * Get unread notifications count
-     */
-    public function unreadNotificationsCount()
-    {
-        return $this->unreadNotifications()->count();
-    }
-
-    /**
-     * Mark all notifications as read
-     */
-    public function markAllNotificationsAsRead()
-    {
-        return $this->notifications()->update([
-            'is_read' => true,
-            'read_at' => now(),
-        ]);
-    }
-
-    /**
-     * Check if user has location set
-     */
-    public function hasLocation()
-    {
-        return $this->location_lat && $this->location_lng;
-    }
-
-    /**
-     * Get user's active items (available for sale/donation)
-     */
-    public function activeItems()
-    {
-        return $this->items()->where('status', 'available');
-    }
-
-    /**
-     * Get user's sold items
-     */
-    public function soldItems()
-    {
-        return $this->items()->where('status', 'sold');
-    }
-
-    /**
-     * Get user's donated items
-     */
-    public function donatedItems()
-    {
-        return $this->items()->where('status', 'donated');
-    }
-
-    /**
-     * Check if user can create items (not suspended, email verified, etc.)
-     */
-    public function canCreateItems()
-    {
-        return $this->email_verified_at !== null;
-    }
-
-    /**
-     * Check if user can place orders
-     */
-    public function canPlaceOrders()
-    {
-        return $this->email_verified_at !== null;
-    }
-
-
-    /**
-     * Get all orders where user is buyer
-     */
-    public function purchaseOrders(): HasMany
-    {
-        return $this->hasMany(Order::class, 'buyer_id');
-    }
-
-    /**
-     * Get all orders where user is seller
-     */
-    public function salesOrders(): HasMany
-    {
-        return $this->hasMany(Order::class, 'seller_id');
-    }
-
 }

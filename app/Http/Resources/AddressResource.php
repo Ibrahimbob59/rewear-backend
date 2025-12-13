@@ -20,11 +20,8 @@ class AddressResource extends JsonResource
             'state' => $this->state,
             'postal_code' => $this->postal_code,
             'country' => $this->country,
-            'full_address' => $this->full_address,
-            'coordinates' => $this->when($this->hasCoordinates(), [
-                'latitude' => $this->latitude,
-                'longitude' => $this->longitude,
-            ]),
+            'latitude' => $this->latitude,
+            'longitude' => $this->longitude,
             'is_default' => $this->is_default,
             'created_at' => $this->created_at->toIso8601String(),
             'updated_at' => $this->updated_at->toIso8601String(),

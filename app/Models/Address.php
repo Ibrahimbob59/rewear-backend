@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Address extends Model
 {
@@ -33,16 +35,12 @@ class Address extends Model
         'updated_at' => 'datetime',
     ];
 
-    protected $appends = [
-        'full_address',
-    ];
-
     // ==================== RELATIONSHIPS ====================
 
     /**
      * Get the user who owns this address
      */
-    public function user()
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
@@ -50,28 +48,9 @@ class Address extends Model
     /**
      * Get orders using this address
      */
-    public function orders()
+    public function orders(): HasMany
     {
         return $this->hasMany(Order::class, 'delivery_address_id');
-    }
-
-    // ==================== ACCESSORS ====================
-
-    /**
-     * Get full formatted address
-     */
-    public function getFullAddressAttribute()
-    {
-        $parts = array_filter([
-            $this->address_line1,
-            $this->address_line2,
-            $this->city,
-            $this->state,
-            $this->postal_code,
-            $this->country,
-        ]);
-
-        return implode(', ', $parts);
     }
 
     // ==================== QUERY SCOPES ====================
@@ -79,7 +58,7 @@ class Address extends Model
     /**
      * Scope for user's addresses
      */
-    public function scopeForUser($query, $userId)
+    public function scopeForUser($query, int $userId)
     {
         return $query->where('user_id', $userId);
     }
@@ -92,33 +71,30 @@ class Address extends Model
         return $query->where('is_default', true);
     }
 
-    // ==================== METHODS ====================
+    // ==================== HELPER METHODS ====================
 
     /**
-     * Set this address as default
+     * Check if address belongs to user
      */
-    public function setAsDefault()
+    public function isOwnedBy(int $userId): bool
     {
-        // Remove default flag from all user's addresses
-        $this->user->addresses()->update(['is_default' => false]);
-
-        // Set this as default
-        $this->update(['is_default' => true]);
+        return $this->user_id === $userId;
     }
 
     /**
-     * Check if user owns this address
+     * Get full address string
      */
-    public function isOwnedBy($userId)
+    public function getFullAddressAttribute(): string
     {
-        return $this->user_id == $userId;
-    }
+        $parts = array_filter([
+            $this->address_line1,
+            $this->address_line2,
+            $this->city,
+            $this->state,
+            $this->postal_code,
+            $this->country,
+        ]);
 
-    /**
-     * Check if address has coordinates
-     */
-    public function hasCoordinates()
-    {
-        return $this->latitude && $this->longitude;
+        return implode(', ', $parts);
     }
 }

@@ -7,6 +7,7 @@ use App\Models\ItemImage;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class ItemService
 {
@@ -18,8 +19,108 @@ class ItemService
     }
 
     /**
+     * Get items with filters and pagination
+     *
+     * @param array $filters
+     * @param int $perPage
+     * @return LengthAwarePaginator
+     */
+    public function getItems(array $filters, int $perPage = 15): LengthAwarePaginator
+    {
+        $query = Item::query()
+            ->with(['seller:id,name,email,city', 'images'])
+            ->where('status', 'available');
+
+        // Apply filters
+        if (!empty($filters['category'])) {
+            $query->where('category', $filters['category']);
+        }
+
+        if (!empty($filters['size'])) {
+            $query->where('size', $filters['size']);
+        }
+
+        if (!empty($filters['condition'])) {
+            $query->where('condition', $filters['condition']);
+        }
+
+        if (!empty($filters['gender'])) {
+            $query->where('gender', $filters['gender']);
+        }
+
+        if (isset($filters['is_donation'])) {
+            $query->where('is_donation', $filters['is_donation']);
+        }
+
+        // Price range (only for non-donations)
+        if (!empty($filters['min_price']) || !empty($filters['max_price'])) {
+            $query->where('is_donation', false);
+
+            if (!empty($filters['min_price'])) {
+                $query->where('price', '>=', $filters['min_price']);
+            }
+
+            if (!empty($filters['max_price'])) {
+                $query->where('price', '<=', $filters['max_price']);
+            }
+        }
+
+        // Search keyword
+        if (!empty($filters['search'])) {
+            $search = $filters['search'];
+            $query->where(function($q) use ($search) {
+                $q->where('title', 'ILIKE', "%{$search}%")
+                    ->orWhere('description', 'ILIKE', "%{$search}%")
+                    ->orWhere('brand', 'ILIKE', "%{$search}%");
+            });
+        }
+
+        // Sorting
+        $sortBy = $filters['sort_by'] ?? 'newest';
+
+        switch ($sortBy) {
+            case 'price_low':
+                $query->where('is_donation', false)
+                    ->orderBy('price', 'asc');
+                break;
+            case 'price_high':
+                $query->where('is_donation', false)
+                    ->orderBy('price', 'desc');
+                break;
+            case 'oldest':
+                $query->orderBy('created_at', 'asc');
+                break;
+            case 'newest':
+            default:
+                $query->orderBy('created_at', 'desc');
+                break;
+        }
+
+        return $query->paginate($perPage);
+    }
+
+    /**
+     * Get a single item by ID
+     *
+     * @param int $id
+     * @param bool $incrementViews
+     * @return Item|null
+     */
+    public function getItemById(int $id, bool $incrementViews = true): ?Item
+    {
+        $item = Item::with(['seller', 'images'])
+            ->find($id);
+
+        if ($item && $incrementViews) {
+            $item->increment('views_count');
+        }
+
+        return $item;
+    }
+
+    /**
      * Create a new item listing
-     * 
+     *
      * @param array $data
      * @param array $images
      * @param User $seller
@@ -51,10 +152,10 @@ class ItemService
                 'views_count' => 0,
             ]);
 
-            // Upload images to Firebase
+            // Upload images to storage
             if (!empty($images)) {
                 $uploadedImages = $this->firebaseStorage->uploadItemImages($images, $item->id);
-                
+
                 // Save image records
                 foreach ($uploadedImages as $imageData) {
                     $item->images()->create($imageData);
@@ -66,17 +167,27 @@ class ItemService
             // Load relationships
             $item->load(['images', 'seller']);
 
+            Log::info('Item created successfully', [
+                'item_id' => $item->id,
+                'seller_id' => $seller->id,
+                'is_donation' => $item->is_donation,
+            ]);
+
             return $item;
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Failed to create item: ' . $e->getMessage());
+            Log::error('Failed to create item', [
+                'seller_id' => $seller->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
             throw $e;
         }
     }
 
     /**
      * Update an item
-     * 
+     *
      * @param Item $item
      * @param array $data
      * @param array|null $newImages
@@ -92,16 +203,23 @@ class ItemService
                 $data['price'] = null;
             }
 
-            // Update item
-            $item->update(array_filter($data, function ($value) {
+            // Update item (only non-null values)
+            $updateData = array_filter($data, function ($value) {
                 return $value !== null;
-            }));
+            });
+
+            $item->update($updateData);
 
             // Upload new images if provided
             if (!empty($newImages)) {
                 $uploadedImages = $this->firebaseStorage->uploadItemImages($newImages, $item->id);
-                
+
                 foreach ($uploadedImages as $imageData) {
+                    // Adjust display_order to be after existing images
+                    $maxOrder = $item->images()->max('display_order') ?? -1;
+                    $imageData['display_order'] += ($maxOrder + 1);
+                    $imageData['is_primary'] = false; // Don't override existing primary
+
                     $item->images()->create($imageData);
                 }
             }
@@ -111,46 +229,91 @@ class ItemService
             // Load relationships
             $item->load(['images', 'seller']);
 
+            Log::info('Item updated successfully', [
+                'item_id' => $item->id,
+                'updated_fields' => array_keys($updateData),
+            ]);
+
             return $item;
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Failed to update item: ' . $e->getMessage());
+            Log::error('Failed to update item', [
+                'item_id' => $item->id,
+                'error' => $e->getMessage(),
+            ]);
             throw $e;
         }
     }
 
     /**
-     * Delete an item and its images
-     * 
+     * Delete an item (soft delete)
+     *
      * @param Item $item
      * @return bool
      */
     public function deleteItem(Item $item): bool
     {
-        DB::beginTransaction();
-
         try {
-            // Delete images from Firebase
-            foreach ($item->images as $image) {
-                $this->firebaseStorage->deleteImage($image->image_url);
-            }
+            // Soft delete the item
+            $deleted = $item->delete();
 
-            // Delete item (soft delete)
-            $item->delete();
+            Log::info('Item deleted successfully', [
+                'item_id' => $item->id,
+                'seller_id' => $item->seller_id,
+            ]);
 
-            DB::commit();
-
-            return true;
+            return $deleted;
         } catch (\Exception $e) {
-            DB::rollBack();
-            Log::error('Failed to delete item: ' . $e->getMessage());
+            Log::error('Failed to delete item', [
+                'item_id' => $item->id,
+                'error' => $e->getMessage(),
+            ]);
             throw $e;
         }
     }
 
     /**
+     * Toggle item status between available and sold
+     *
+     * @param Item $item
+     * @return Item
+     */
+    public function toggleStatus(Item $item): Item
+    {
+        $newStatus = $item->status === 'available' ? 'sold' : 'available';
+
+        $item->update([
+            'status' => $newStatus,
+            'sold_at' => $newStatus === 'sold' ? now() : null,
+        ]);
+
+        Log::info('Item status toggled', [
+            'item_id' => $item->id,
+            'old_status' => $item->status,
+            'new_status' => $newStatus,
+        ]);
+
+        return $item->fresh(['images', 'seller']);
+    }
+
+    /**
+     * Get user's listings
+     *
+     * @param int $userId
+     * @param int $perPage
+     * @return LengthAwarePaginator
+     */
+    public function getUserListings(int $userId, int $perPage = 15): LengthAwarePaginator
+    {
+        return Item::with(['images'])
+            ->where('seller_id', $userId)
+            ->orderBy('created_at', 'desc')
+            ->paginate($perPage);
+    }
+
+    /**
      * Delete a single item image
-     * 
+     *
      * @param ItemImage $image
      * @return bool
      */
@@ -159,133 +322,35 @@ class ItemService
         DB::beginTransaction();
 
         try {
-            // Delete from Firebase
+            $item = $image->item;
+            $wasPrimary = $image->is_primary;
+
+            // Delete from storage
             $this->firebaseStorage->deleteImage($image->image_url);
 
             // Delete record
             $image->delete();
 
             // If this was primary and there are other images, make first one primary
-            $item = $image->item;
-            if ($image->is_primary && $item->images()->count() > 0) {
-                $item->images()->first()->setAsPrimary();
+            if ($wasPrimary && $item->images()->count() > 0) {
+                $item->images()->first()->update(['is_primary' => true]);
             }
 
             DB::commit();
 
+            Log::info('Item image deleted', [
+                'image_id' => $image->id,
+                'item_id' => $item->id,
+            ]);
+
             return true;
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Failed to delete item image: ' . $e->getMessage());
-            return false;
+            Log::error('Failed to delete item image', [
+                'image_id' => $image->id,
+                'error' => $e->getMessage(),
+            ]);
+            throw $e;
         }
-    }
-
-    /**
-     * Get filtered and paginated items
-     * 
-     * @param array $filters
-     * @param int $perPage
-     * @return \Illuminate\Pagination\LengthAwarePaginator
-     */
-    public function getItems(array $filters, int $perPage = 20)
-    {
-        $query = Item::query()
-            ->with(['images', 'seller:id,name,location_lat,location_lng'])
-            ->available(); // Only available items
-
-        // Apply filters
-        if (!empty($filters['search'])) {
-            $query->search($filters['search']);
-        }
-
-        if (!empty($filters['category'])) {
-            $query->byCategory($filters['category']);
-        }
-
-        if (isset($filters['min_price']) || isset($filters['max_price'])) {
-            $query->byPriceRange($filters['min_price'] ?? null, $filters['max_price'] ?? null);
-        }
-
-        if (!empty($filters['size'])) {
-            $query->bySize($filters['size']);
-        }
-
-        if (!empty($filters['condition'])) {
-            $query->byCondition($filters['condition']);
-        }
-
-        if (!empty($filters['gender'])) {
-            $query->byGender($filters['gender']);
-        }
-
-        if (isset($filters['is_donation'])) {
-            if ($filters['is_donation']) {
-                $query->donations();
-            } else {
-                $query->forSale();
-            }
-        }
-
-        // Location filter (if user location provided)
-        if (!empty($filters['latitude']) && !empty($filters['longitude'])) {
-            $radius = $filters['radius'] ?? 50; // Default 50km
-            $query->nearby($filters['latitude'], $filters['longitude'], $radius);
-        }
-
-        // Sorting
-        $sort = $filters['sort'] ?? 'newest';
-        $query->sorted($sort);
-
-        return $query->paginate($perPage);
-    }
-
-    /**
-     * Get item by ID with relationships
-     * 
-     * @param int $id
-     * @return Item|null
-     */
-    public function getItemById(int $id): ?Item
-    {
-        return Item::with([
-            'images',
-            'seller:id,name,email,phone,location_lat,location_lng,created_at',
-        ])->find($id);
-    }
-
-    /**
-     * Increment item views
-     * 
-     * @param Item $item
-     * @return void
-     */
-    public function incrementViews(Item $item): void
-    {
-        $item->incrementViews();
-    }
-
-    /**
-     * Toggle item status
-     * 
-     * @param Item $item
-     * @param string $status
-     * @return Item
-     */
-    public function toggleStatus(Item $item, string $status): Item
-    {
-        $allowedStatuses = ['available', 'cancelled'];
-        
-        if (!in_array($status, $allowedStatuses)) {
-            throw new \Exception('Invalid status');
-        }
-
-        if ($status === 'available') {
-            $item->markAsAvailable();
-        } elseif ($status === 'cancelled') {
-            $item->cancel();
-        }
-
-        return $item->fresh();
     }
 }

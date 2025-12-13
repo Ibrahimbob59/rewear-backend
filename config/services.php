@@ -36,7 +36,6 @@ return [
     ],
     'firebase' => [
         'storage_bucket' => env('FIREBASE_STORAGE_BUCKET'),
-        'api_key' => env('FIREBASE_API_KEY'),
     ],
     'google' => [
         'maps_api_key' => env('GOOGLE_MAPS_API_KEY'),

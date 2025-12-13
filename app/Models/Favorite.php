@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Favorite extends Model
 {
@@ -19,14 +20,12 @@ class Favorite extends Model
         'updated_at' => 'datetime',
     ];
 
-    public $timestamps = true;
-
     // ==================== RELATIONSHIPS ====================
 
     /**
      * Get the user who favorited
      */
-    public function user()
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
@@ -34,7 +33,7 @@ class Favorite extends Model
     /**
      * Get the favorited item
      */
-    public function item()
+    public function item(): BelongsTo
     {
         return $this->belongsTo(Item::class);
     }
@@ -44,7 +43,7 @@ class Favorite extends Model
     /**
      * Scope for user's favorites
      */
-    public function scopeForUser($query, $userId)
+    public function scopeForUser($query, int $userId)
     {
         return $query->where('user_id', $userId);
     }
@@ -52,7 +51,7 @@ class Favorite extends Model
     /**
      * Scope for specific item
      */
-    public function scopeForItem($query, $itemId)
+    public function scopeForItem($query, int $itemId)
     {
         return $query->where('item_id', $itemId);
     }
