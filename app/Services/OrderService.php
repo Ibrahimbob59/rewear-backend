@@ -84,8 +84,7 @@ class OrderService
 
             // Mark item as pending/sold
             $item->update([
-                'status' => $item->is_donation ? 'donated' : 'sold',
-                'sold_at' => now(),
+                'status' => 'pending',
             ]);
 
             // Create notifications
@@ -192,7 +191,6 @@ class OrderService
             // Make item available again
             $order->item()->update([
                 'status' => 'available',
-                'sold_at' => null,
             ]);
 
             // Update delivery if exists
@@ -234,11 +232,19 @@ class OrderService
     {
         $date = now()->format('Ymd');
 
-        // Get count of orders today
-        $todayCount = Order::whereDate('created_at', today())->count();
+        // Get the highest sequence number used today (including deleted/cancelled)
+        $lastOrder = Order::withTrashed()
+            ->where('order_number', 'LIKE', "RW-{$date}-%")
+            ->orderBy('order_number', 'desc')
+            ->first();
 
-        // Increment and pad with zeros
-        $sequence = str_pad($todayCount + 1, 5, '0', STR_PAD_LEFT);
+        if ($lastOrder) {
+            // Extract sequence from last order number (RW-20251214-00002 -> 00002)
+            $lastSequence = (int) substr($lastOrder->order_number, -5);
+            $sequence = str_pad($lastSequence + 1, 5, '0', STR_PAD_LEFT);
+        } else {
+            $sequence = '00001';
+        }
 
         return "RW-{$date}-{$sequence}";
     }
