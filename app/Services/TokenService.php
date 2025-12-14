@@ -59,6 +59,7 @@ class TokenService
         return $this->jwt->builder()
             ->issuedBy(config('app.url'))
             ->issuedAt($now)
+            ->canOnlyBeUsedAfter($now)
             ->expiresAt($now->modify("+{$ttl} minutes"))
             ->relatedTo((string) $user->id)
             ->withClaim('email', $user->email)
@@ -131,25 +132,41 @@ class TokenService
     /**
      * Validate JWT access token
      */
+    /**
+     * Validate JWT access token and return user data
+     */
     public function validateToken(string $token): array
     {
         try {
-            $token = $this->jwt->parser()->parse($token);
+            $parsedToken = $this->jwt->parser()->parse($token);
 
             $constraints = [
-                new SignedWith($this->jwt->signer(), $this->jwt->verificationKey()),
-                new StrictValidAt(SystemClock::fromSystemTimezone()),
+                new SignedWith($this->jwt->signer(), $this->jwt->signingKey()),
+                new StrictValidAt(new SystemClock(new \DateTimeZone(\date_default_timezone_get())))
             ];
 
-            $this->jwt->validator()->assert($token, ...$constraints);
+            if (!$this->jwt->validator()->validate($parsedToken, ...$constraints)) {
+                throw new UnauthorizedHttpException('Bearer', 'Token signature or expiration invalid');
+            }
+
+            $userId = $parsedToken->claims()->get('sub');
+            $email = $parsedToken->claims()->get('email');
+            $userType = $parsedToken->claims()->get('user_type');
 
             return [
                 'valid' => true,
-                'user_id' => $token->claims()->get('sub'),
-                'expires_at' => $token->claims()->get('exp')->format('Y-m-d H:i:s'),
+                'user' => [
+                    'id' => $userId,
+                    'email' => $email,
+                    'user_type' => $userType,
+                ],
+                'token_info' => [
+                    'issued_at' => $parsedToken->claims()->get('iat')->format('Y-m-d H:i:s'),
+                    'expires_at' => $parsedToken->claims()->get('exp')->format('Y-m-d H:i:s'),
+                ],
             ];
-        } catch (\Throwable $e) {
-            throw new UnauthorizedHttpException('Bearer', 'Token is invalid or expired');
+        } catch (\Exception $e) {
+            throw new UnauthorizedHttpException('Bearer', 'Token is invalid: ' . $e->getMessage());
         }
     }
 

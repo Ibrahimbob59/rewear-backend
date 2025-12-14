@@ -188,7 +188,14 @@ class AddressController extends Controller
     public function update(UpdateAddressRequest $request, int $id): JsonResponse
     {
         try {
-            $address = Address::findOrFail($id);
+            $address = Address::find($id);
+
+            if (!$address) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Address not found',
+                ], 404);
+            }
 
             // Authorization check (must be owner)
             if ($address->user_id !== auth()->id()) {
@@ -251,7 +258,14 @@ class AddressController extends Controller
     public function destroy(int $id): JsonResponse
     {
         try {
-            $address = Address::findOrFail($id);
+            $address = Address::find($id);
+
+            if (!$address) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Address not found',
+                ], 404);
+            }
 
             // Authorization check (must be owner)
             if ($address->user_id !== auth()->id()) {

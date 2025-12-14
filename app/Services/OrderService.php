@@ -27,7 +27,16 @@ class OrderService
 
         try {
             // Get item and validate
-            $item = Item::with('seller')->findOrFail($data['item_id']);
+            // Get item and validate
+            $item = Item::with('seller')->find($data['item_id']);
+
+            if (!$item) {
+                throw new \Exception('Item not found');
+            }
+
+            if ($item->trashed()) {
+                throw new \Exception('This item has been deleted and is no longer available');
+            }
 
             // Validate item is available
             if ($item->status !== 'available') {
@@ -189,7 +198,7 @@ class OrderService
             // Update delivery if exists
             if ($order->delivery) {
                 $order->delivery->update([
-                    'status' => 'cancelled',
+                    'status' => 'failed',
                 ]);
             }
 
@@ -263,8 +272,8 @@ class OrderService
                 $deliveryAddress->longitude
             ),
             'delivery_fee' => $order->delivery_fee,
-            'driver_earnings' => $order->delivery_fee * 0.75, // 75% to driver
-            'platform_earnings' => $order->delivery_fee * 0.25, // 25% to platform
+            'driver_earning' => $order->delivery_fee * 0.75, // 75% to driver
+            'platform_fee' => $order->delivery_fee * 0.25, // 25% to platform
             'status' => 'pending',
         ]);
     }
@@ -311,7 +320,7 @@ class OrderService
         // Notify seller
         Notification::create([
             'user_id' => $order->seller_id,
-            'type' => 'order_created',
+            'type' => 'order_placed',
             'title' => 'New Order Received',
             'message' => "You have a new order for: {$item->title}",
             'data' => [
@@ -324,7 +333,7 @@ class OrderService
         // Notify buyer (confirmation)
         Notification::create([
             'user_id' => $order->buyer_id,
-            'type' => 'order_created',
+            'type' => 'order_placed',
             'title' => 'Order Placed Successfully',
             'message' => "Your order for {$item->title} has been placed successfully",
             'data' => [
@@ -345,7 +354,7 @@ class OrderService
         // Notify seller
         Notification::create([
             'user_id' => $order->seller_id,
-            'type' => 'order_cancelled',
+            'type' => 'general',
             'title' => 'Order Cancelled',
             'message' => "Order {$order->order_number} has been cancelled",
             'data' => [

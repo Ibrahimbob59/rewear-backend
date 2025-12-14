@@ -3,7 +3,10 @@
     "allow": [
       "Bash(php artisan:*)",
       "Bash(composer show:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(curl:*)",
+      "Bash(test:*)",
+      "Bash(php test_auth.php:*)"
     ],
     "deny": [],
     "ask": []

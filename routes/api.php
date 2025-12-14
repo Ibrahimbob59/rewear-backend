@@ -41,7 +41,7 @@ Route::prefix('auth')->group(function () {
 
 // Public item browsing (no authentication required)
 Route::get('/items', [ItemController::class, 'index']);
-Route::get('/items/{id}', [ItemController::class, 'show']);
+Route::get('/items/{id}', [ItemController::class, 'show'])->whereNumber('id');
 
 // ==================== PROTECTED ROUTES (AUTHENTICATION REQUIRED) ====================
 

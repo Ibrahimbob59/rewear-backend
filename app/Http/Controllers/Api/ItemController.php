@@ -231,12 +231,20 @@ class ItemController extends Controller
      *                 @OA\Property(property="brand", type="string", maxLength=100, example="Levi's"),
      *                 @OA\Property(property="color", type="string", maxLength=50, example="Blue"),
      *                 @OA\Property(property="price", type="number", format="float", example=25.00, description="Required if is_donation=false"),
-     *                 @OA\Property(property="is_donation", type="boolean", example=false),
+     *                 @OA\Property(
+     *                      property="is_donation",
+     *                      type="string",
+     *                      enum={"0", "1"},
+     *                      example="0",
+     *                      description="Donation status: 0 = For Sale, 1 = Donation"
+     *                  ),
      *                 @OA\Property(
      *                     property="images",
      *                     type="array",
      *                     @OA\Items(type="string", format="binary"),
-     *                     description="1-6 images (JPEG, PNG, JPG, WEBP, max 5MB each)"
+     *                     minItems=1,
+     *                     maxItems=6,
+     *                      description="NOTE: Swagger UI doesn't support array file uploads properly. Use Postman with 'images[]' keys instead. This endpoint works correctly via Postman/cURL."
      *                 )
      *             )
      *         )
@@ -323,7 +331,21 @@ class ItemController extends Controller
     public function update(UpdateItemRequest $request, int $id): JsonResponse
     {
         try {
-            $item = Item::findOrFail($id);
+            $item = Item::withTrashed()->find($id);
+
+            if (!$item) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Item not found',
+                ], 404);
+            }
+
+            if ($item->trashed()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Item is already deleted',
+                ], 400);
+            }
 
             if ($item->seller_id !== auth()->id()) {
                 return response()->json([
@@ -393,7 +415,21 @@ class ItemController extends Controller
     public function destroy(int $id): JsonResponse
     {
         try {
-            $item = Item::findOrFail($id);
+            $item = Item::withTrashed()->find($id);
+
+            if (!$item) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Item not found',
+                ], 404);
+            }
+
+            if ($item->trashed()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Item is already deleted',
+                ], 400);
+            }
 
             if ($item->seller_id !== auth()->id()) {
                 return response()->json([

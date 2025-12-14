@@ -1557,16 +1557,23 @@
                                         "example": 25
                                     },
                                     "is_donation": {
-                                        "type": "boolean",
-                                        "example": false
+                                        "description": "Donation status: 0 = For Sale, 1 = Donation",
+                                        "type": "string",
+                                        "enum": [
+                                            "0",
+                                            "1"
+                                        ],
+                                        "example": "0"
                                     },
                                     "images": {
-                                        "description": "1-6 images (JPEG, PNG, JPG, WEBP, max 5MB each)",
+                                        "description": "NOTE: Swagger UI doesn't support array file uploads properly. Use Postman with 'images[]' keys instead. This endpoint works correctly via Postman/cURL.",
                                         "type": "array",
                                         "items": {
                                             "type": "string",
                                             "format": "binary"
-                                        }
+                                        },
+                                        "maxItems": 6,
+                                        "minItems": 1
                                     }
                                 },
                                 "type": "object"
