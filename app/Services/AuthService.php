@@ -165,8 +165,8 @@ class AuthService
         }
 
         // Successful login - reset attempts and update last login
-        $user->resetLoginAttempts();
-        $user->updateLastLogin();
+        $user->resetLoginAttempts();                             
+        //TODOS $user->updateLastLogin();
 
         // Generate tokens
         $tokens = $this->tokenService->generateTokens($user, $credentials['device_name'] ?? null);

@@ -94,18 +94,24 @@ class FirebaseStorageService
         // Get file contents
         $fileContents = file_get_contents($image->getRealPath());
 
+        // Adding token
+        $token = (string) \Illuminate\Support\Str::uuid();
+
         // Upload to Firebase
         $object = $this->bucket->upload($fileContents, [
-            'name' => $firebasePath,
+        'name' => $firebasePath,
+        'metadata' => [
+            'contentType' => $image->getMimeType(),
             'metadata' => [
-                'contentType' => $image->getMimeType(),
-                'metadata' => [
-                    'itemId' => (string)$itemId,
-                    'originalName' => $image->getClientOriginalName(),
-                    'uploadedAt' => now()->toIso8601String(),
-                ]
-            ]
-        ]);
+                'firebaseStorageDownloadTokens' => $token,
+
+                'itemId' => (string)$itemId,
+                'originalName' => $image->getClientOriginalName(),
+                'uploadedAt' => now()->toIso8601String(),
+            ],
+        ],
+    ]);
+
 
         // Make the file publicly accessible
         $object->update([
@@ -115,7 +121,8 @@ class FirebaseStorageService
         ]);
 
         // Get public URL
-        $publicUrl = $this->getPublicUrl($firebasePath);
+        $publicUrl = $this->getPublicUrl($firebasePath, $token);
+
 
         Log::info('Image uploaded to Firebase successfully', [
             'item_id' => $itemId,
@@ -248,13 +255,13 @@ class FirebaseStorageService
      * @param string $path
      * @return string
      */
-    protected function getPublicUrl(string $path): string
+    protected function getPublicUrl(string $path, string $token): string
     {
-        // Firebase Storage public URL format
         return sprintf(
-            'https://firebasestorage.googleapis.com/v0/b/%s/o/%s?alt=media',
+            'https://firebasestorage.googleapis.com/v0/b/%s/o/%s?alt=media&token=%s',
             $this->bucketName,
-            urlencode($path)
+            urlencode($path),
+            $token
         );
     }
 
