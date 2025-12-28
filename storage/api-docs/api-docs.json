@@ -168,8 +168,8 @@
                 "tags": [
                     "Admin Management"
                 ],
-                "summary": "Get platform statistics (Admin only)",
-                "description": "Get platform statistics (Admin only)",
+                "summary": "Get platform statistics",
+                "description": "Get platform statistics (Public)",
                 "operationId": "30c2dad37f3f48c93b37aed0e09c837b",
                 "responses": {
                     "200": {
@@ -192,17 +192,29 @@
                                                     "type": "integer",
                                                     "example": 15
                                                 },
-                                                "total_drivers": {
+                                                "total_donations": {
                                                     "type": "integer",
-                                                    "example": 50
+                                                    "example": 342
                                                 },
-                                                "verified_drivers": {
+                                                "total_items_sold": {
                                                     "type": "integer",
-                                                    "example": 42
+                                                    "example": 856
                                                 },
-                                                "active_users": {
+                                                "items_saved_from_landfill": {
                                                     "type": "integer",
-                                                    "example": 1180
+                                                    "example": 1198
+                                                },
+                                                "charities_helped": {
+                                                    "type": "integer",
+                                                    "example": 12
+                                                },
+                                                "active_listings": {
+                                                    "type": "integer",
+                                                    "example": 234
+                                                },
+                                                "total_items_listed": {
+                                                    "type": "integer",
+                                                    "example": 1542
                                                 }
                                             },
                                             "type": "object"
@@ -212,16 +224,8 @@
                                 }
                             }
                         }
-                    },
-                    "403": {
-                        "description": "Forbidden - Not an admin"
                     }
-                },
-                "security": [
-                    {
-                        "bearerAuth": []
-                    }
-                ]
+                }
             }
         },
         "/api/addresses": {
@@ -1467,7 +1471,7 @@
                     "Items"
                 ],
                 "summary": "Create a new item listing",
-                "description": "Create a new item for sale or donation with images",
+                "description": "Create a new item for sale or donation",
                 "operationId": "371ad8f4244d53c482a14de9004905a4",
                 "requestBody": {
                     "required": true,
@@ -1478,7 +1482,6 @@
                                     "title",
                                     "description",
                                     "category",
-                                    "size",
                                     "condition",
                                     "is_donation",
                                     "images"
@@ -1486,13 +1489,11 @@
                                 "properties": {
                                     "title": {
                                         "type": "string",
-                                        "maxLength": 255,
                                         "example": "Blue Denim Jacket"
                                     },
                                     "description": {
                                         "type": "string",
-                                        "maxLength": 2000,
-                                        "example": "Vintage blue denim jacket in excellent condition"
+                                        "example": "Gently used denim jacket"
                                     },
                                     "category": {
                                         "type": "string",
@@ -1504,8 +1505,7 @@
                                             "shoes",
                                             "accessories",
                                             "other"
-                                        ],
-                                        "example": "outerwear"
+                                        ]
                                     },
                                     "size": {
                                         "type": "string",
@@ -1518,8 +1518,7 @@
                                             "XXL",
                                             "XXXL",
                                             "One Size"
-                                        ],
-                                        "example": "M"
+                                        ]
                                     },
                                     "condition": {
                                         "type": "string",
@@ -1528,8 +1527,7 @@
                                             "like_new",
                                             "good",
                                             "fair"
-                                        ],
-                                        "example": "good"
+                                        ]
                                     },
                                     "gender": {
                                         "type": "string",
@@ -1537,18 +1535,19 @@
                                             "male",
                                             "female",
                                             "unisex"
-                                        ],
-                                        "example": "unisex"
+                                        ]
                                     },
                                     "brand": {
                                         "type": "string",
-                                        "maxLength": 100,
                                         "example": "Levi's"
                                     },
                                     "color": {
                                         "type": "string",
-                                        "maxLength": 50,
                                         "example": "Blue"
+                                    },
+                                    "is_donation": {
+                                        "type": "boolean",
+                                        "example": false
                                     },
                                     "price": {
                                         "description": "Required if is_donation=false",
@@ -1556,24 +1555,18 @@
                                         "format": "float",
                                         "example": 25
                                     },
-                                    "is_donation": {
-                                        "description": "Donation status: 0 = For Sale, 1 = Donation",
-                                        "type": "string",
-                                        "enum": [
-                                            "0",
-                                            "1"
-                                        ],
-                                        "example": "0"
+                                    "donation_quantity": {
+                                        "description": "Required if is_donation=true. Number of items in donation batch",
+                                        "type": "integer",
+                                        "example": 10
                                     },
                                     "images": {
-                                        "description": "NOTE: Swagger UI doesn't support array file uploads properly. Use Postman with 'images[]' keys instead. This endpoint works correctly via Postman/cURL.",
+                                        "description": "1-6 images",
                                         "type": "array",
                                         "items": {
                                             "type": "string",
                                             "format": "binary"
-                                        },
-                                        "maxItems": 6,
-                                        "minItems": 1
+                                        }
                                     }
                                 },
                                 "type": "object"
@@ -1583,30 +1576,7 @@
                 },
                 "responses": {
                     "201": {
-                        "description": "Item created successfully",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": true
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Item created successfully"
-                                        },
-                                        "data": {
-                                            "type": "object"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized"
+                        "description": "Item created successfully"
                     },
                     "422": {
                         "description": "Validation error"

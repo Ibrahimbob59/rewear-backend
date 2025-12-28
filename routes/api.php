@@ -43,6 +43,9 @@ Route::prefix('auth')->group(function () {
 Route::get('/items', [ItemController::class, 'index']);
 Route::get('/items/{id}', [ItemController::class, 'show'])->whereNumber('id');
 
+// Public platform statistics (no authentication required)
+Route::get('/admin/stats', [AdminController::class, 'getStats']);
+
 // ==================== PROTECTED ROUTES (AUTHENTICATION REQUIRED) ====================
 
 Route::middleware('auth:api')->group(function () {
@@ -121,9 +124,6 @@ Route::middleware('auth:api')->group(function () {
         });
 
         Route::get('/charities', [AdminController::class, 'getCharities']);
-
-        // Analytics & Statistics
-        Route::get('/stats', [AdminController::class, 'getStats']);
     });
 });
 

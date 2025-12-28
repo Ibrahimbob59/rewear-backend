@@ -21,6 +21,7 @@ class ItemResource extends JsonResource
             'color' => $this->color,
             'price' => $this->price,
             'is_donation' => $this->is_donation,
+            'donation_quantity' => $this->donation_quantity,
             'status' => $this->status,
             'views_count' => $this->views_count,
             'sold_at' => $this->sold_at?->toIso8601String(),

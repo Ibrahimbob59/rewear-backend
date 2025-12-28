@@ -24,6 +24,7 @@ class Item extends Model
         'color',
         'price',
         'is_donation',
+        'donation_quantity',
         'status',
         'views_count',
         'sold_at',
@@ -32,6 +33,7 @@ class Item extends Model
     protected $casts = [
         'price' => 'decimal:2',
         'is_donation' => 'boolean',
+        'donation_quantity' => 'integer',           // NEW
         'views_count' => 'integer',
         'sold_at' => 'datetime',
         'created_at' => 'datetime',
@@ -189,5 +191,42 @@ class Item extends Model
     public function isFavoritedBy(int $userId): bool
     {
         return $this->favorites()->where('user_id', $userId)->exists();
+    }
+    /**
+     * Check if donation has available items
+     */
+    public function hasDonationAvailable(): bool
+    {
+        return $this->is_donation && $this->donation_quantity_available > 0;
+    }
+
+    /**
+     * Decrease donation quantity
+     */
+    public function decrementDonationQuantity(int $amount = 1): void
+    {
+        if (!$this->is_donation) {
+            return;
+        }
+
+        $this->decrement('donation_quantity_available', $amount);
+
+        // If all donated, mark as donated
+        if ($this->donation_quantity_available === 0) {
+            $this->update(['status' => 'donated']);
+        }
+    }
+
+    /**
+     * Get donation percentage claimed
+     */
+    public function getDonationPercentageClaimedAttribute(): int
+    {
+        if (!$this->is_donation || $this->donation_quantity === 0) {
+            return 0;
+        }
+
+        $claimed = $this->donation_quantity - $this->donation_quantity_available;
+        return (int) (($claimed / $this->donation_quantity) * 100);
     }
 }

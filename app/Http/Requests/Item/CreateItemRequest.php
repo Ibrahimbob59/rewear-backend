@@ -17,15 +17,16 @@ class CreateItemRequest extends FormRequest
             'title' => 'required|string|max:255',
             'description' => 'required|string|max:2000',
             'category' => 'required|in:tops,bottoms,dresses,outerwear,shoes,accessories,other',
-            'size' => 'required|in:XS,S,M,L,XL,XXL,XXXL,One Size',
+            'size' => 'nullable|in:XS,S,M,L,XL,XXL,XXXL,One Size',
             'condition' => 'required|in:new,like_new,good,fair',
             'gender' => 'nullable|in:male,female,unisex',
             'brand' => 'nullable|string|max:100',
             'color' => 'nullable|string|max:50',
-            'price' => 'nullable|numeric|min:0.01|max:999999.99',
             'is_donation' => 'required|boolean',
+            'price' => 'required_if:is_donation,false|nullable|numeric|min:0.01|max:9999.99',
+            'donation_quantity' => 'required_if:is_donation,true|nullable|integer|min:1|max:1000',
             'images' => 'required|array|min:1|max:6',
-            'images.*' => 'image|mimes:jpeg,png,jpg,webp|max:5120', // 5MB max
+            'images.*' => 'required|image|mimes:jpeg,jpg,png,webp|max:5120',
         ];
     }
 
@@ -52,6 +53,11 @@ class CreateItemRequest extends FormRequest
             'images.*.image' => 'Each file must be an image',
             'images.*.mimes' => 'Images must be jpeg, png, jpg, or webp format',
             'images.*.max' => 'Each image must not exceed 5MB',
+            'price.required_if' => 'Price is required for sale items',
+            'donation_quantity.required_if' => 'Quantity is required for donation items',  // ← ADD THIS LINE
+            'donation_quantity.integer' => 'Quantity must be a whole number',              // ← ADD THIS LINE
+            'donation_quantity.min' => 'Quantity must be at least 1',                      // ← ADD THIS LINE
+            'donation_quantity.max' => 'Quantity cannot exceed 1000',                      // ← ADD THIS LINE
         ];
     }
 

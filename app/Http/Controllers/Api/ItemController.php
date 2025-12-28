@@ -214,51 +214,30 @@ class ItemController extends Controller
      *     path="/api/items",
      *     tags={"Items"},
      *     summary="Create a new item listing",
-     *     description="Create a new item for sale or donation with images",
+     *     description="Create a new item for sale or donation",
      *     security={{"bearerAuth": {}}},
      *     @OA\RequestBody(
      *         required=true,
      *         @OA\MediaType(
      *             mediaType="multipart/form-data",
      *             @OA\Schema(
-     *                 required={"title","description","category","size","condition","is_donation","images"},
-     *                 @OA\Property(property="title", type="string", maxLength=255, example="Blue Denim Jacket"),
-     *                 @OA\Property(property="description", type="string", maxLength=2000, example="Vintage blue denim jacket in excellent condition"),
-     *                 @OA\Property(property="category", type="string", enum={"tops","bottoms","dresses","outerwear","shoes","accessories","other"}, example="outerwear"),
-     *                 @OA\Property(property="size", type="string", enum={"XS","S","M","L","XL","XXL","XXXL","One Size"}, example="M"),
-     *                 @OA\Property(property="condition", type="string", enum={"new","like_new","good","fair"}, example="good"),
-     *                 @OA\Property(property="gender", type="string", enum={"male","female","unisex"}, example="unisex"),
-     *                 @OA\Property(property="brand", type="string", maxLength=100, example="Levi's"),
-     *                 @OA\Property(property="color", type="string", maxLength=50, example="Blue"),
+     *                 required={"title","description","category","condition","is_donation","images"},
+     *                 @OA\Property(property="title", type="string", example="Blue Denim Jacket"),
+     *                 @OA\Property(property="description", type="string", example="Gently used denim jacket"),
+     *                 @OA\Property(property="category", type="string", enum={"tops","bottoms","dresses","outerwear","shoes","accessories","other"}),
+     *                 @OA\Property(property="size", type="string", enum={"XS","S","M","L","XL","XXL","XXXL","One Size"}),
+     *                 @OA\Property(property="condition", type="string", enum={"new","like_new","good","fair"}),
+     *                 @OA\Property(property="gender", type="string", enum={"male","female","unisex"}),
+     *                 @OA\Property(property="brand", type="string", example="Levi's"),
+     *                 @OA\Property(property="color", type="string", example="Blue"),
+     *                 @OA\Property(property="is_donation", type="boolean", example=false),
      *                 @OA\Property(property="price", type="number", format="float", example=25.00, description="Required if is_donation=false"),
-     *                 @OA\Property(
-     *                      property="is_donation",
-     *                      type="string",
-     *                      enum={"0", "1"},
-     *                      example="0",
-     *                      description="Donation status: 0 = For Sale, 1 = Donation"
-     *                  ),
-     *                 @OA\Property(
-     *                     property="images",
-     *                     type="array",
-     *                     @OA\Items(type="string", format="binary"),
-     *                     minItems=1,
-     *                     maxItems=6,
-     *                      description="NOTE: Swagger UI doesn't support array file uploads properly. Use Postman with 'images[]' keys instead. This endpoint works correctly via Postman/cURL."
-     *                 )
+     *                 @OA\Property(property="donation_quantity", type="integer", example=10, description="Required if is_donation=true. Number of items in donation batch"),
+     *                 @OA\Property(property="images", type="array", @OA\Items(type="string", format="binary"), description="1-6 images")
      *             )
      *         )
      *     ),
-     *     @OA\Response(
-     *         response=201,
-     *         description="Item created successfully",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="success", type="boolean", example=true),
-     *             @OA\Property(property="message", type="string", example="Item created successfully"),
-     *             @OA\Property(property="data", type="object")
-     *         )
-     *     ),
-     *     @OA\Response(response=401, description="Unauthorized"),
+     *     @OA\Response(response=201, description="Item created successfully"),
      *     @OA\Response(response=422, description="Validation error")
      * )
      */
@@ -278,7 +257,7 @@ class ItemController extends Controller
                 ], 401);
             }
 
-            $item = $this->itemService->createItem($data, $images, $user);
+           $item = $this->itemService->createItem($data, $user, $images);
 
             return response()->json([
                 'success' => true,

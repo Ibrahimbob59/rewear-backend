@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\Item;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
@@ -226,13 +228,12 @@ class AdminController extends Controller
     }
 
     /**
-     * Get platform statistics (Admin only)
+     * Get platform statistics (Public)
      *
      * @OA\Get(
      *     path="/api/admin/stats",
-     *     summary="Get platform statistics (Admin only)",
+     *     summary="Get platform statistics",
      *     tags={"Admin Management"},
-     *     security={{"bearerAuth": {}}},
      *     @OA\Response(
      *         response=200,
      *         description="Statistics retrieved successfully",
@@ -241,30 +242,60 @@ class AdminController extends Controller
      *             @OA\Property(property="data", type="object",
      *                 @OA\Property(property="total_users", type="integer", example=1250),
      *                 @OA\Property(property="total_charities", type="integer", example=15),
-     *                 @OA\Property(property="total_drivers", type="integer", example=50),
-     *                 @OA\Property(property="verified_drivers", type="integer", example=42),
-     *                 @OA\Property(property="active_users", type="integer", example=1180)
+     *                 @OA\Property(property="total_donations", type="integer", example=342),
+     *                 @OA\Property(property="total_items_sold", type="integer", example=856),
+     *                 @OA\Property(property="items_saved_from_landfill", type="integer", example=1198),
+     *                 @OA\Property(property="charities_helped", type="integer", example=12),
+     *                 @OA\Property(property="active_listings", type="integer", example=234),
+     *                 @OA\Property(property="total_items_listed", type="integer", example=1542)
      *             )
      *         )
-     *     ),
-     *     @OA\Response(response=403, description="Forbidden - Not an admin")
+     *     )
      * )
      */
     public function getStats(): JsonResponse
     {
         try {
-            Log::info('Admin viewing platform statistics', [
-                'admin_id' => auth()->id(),
-            ]);
+            Log::info('Public viewing platform statistics');
+
+            // Total donations: items with is_donation=true and status='donated' or 'pending'
+            $totalDonations = Item::where('is_donation', true)
+            ->whereIn('status', ['pending', 'donated'])
+            ->count();
+
+            // Total items sold: items with is_donation=false and status='sold' or 'pending'
+            $totalItemsSold = Item::where('is_donation', false)
+            ->whereIn('status', ['pending', 'sold'])
+            ->count();
+
+            // Items saved from landfill: total donations + total items sold
+            $itemsSavedFromLandfill = $totalDonations + $totalItemsSold;
+
+            // Charities helped: distinct charities that received at least one donation
+            $charitiesHelped = DB::table('orders')
+                ->join('items', 'orders.item_id', '=', 'items.id')
+                ->join('users', 'orders.buyer_id', '=', 'users.id')
+                ->where('items.is_donation', true)
+                ->where('users.user_type', 'charity')
+                ->whereIn('orders.status', ['pending', 'confirmed', 'in_delivery', 'delivered', 'completed'])
+                ->distinct('orders.buyer_id')
+                ->count('orders.buyer_id');
+
+            // Active listings: items currently available for sale/donation
+            $activeListings = Item::where('status', 'available')->count();
+
+            // Total items listed: all items ever created (including soft deleted)
+            $totalItemsListed = Item::withTrashed()->count();
 
             $stats = [
                 'total_users' => User::where('user_type', 'user')->count(),
                 'total_charities' => User::where('user_type', 'charity')->count(),
-                'total_drivers' => User::where('is_driver', true)->count(),
-                'verified_drivers' => User::where('is_driver', true)
-                    ->where('driver_verified', true)
-                    ->count(),
-                'active_users' => User::where('is_active', true)->count(),
+                'total_donations' => $totalDonations,
+                'total_items_sold' => $totalItemsSold,
+                'items_saved_from_landfill' => $itemsSavedFromLandfill,
+                'charities_helped' => $charitiesHelped,
+                'active_listings' => $activeListings,
+                'total_items_listed' => $totalItemsListed,
             ];
 
             return response()->json([
@@ -274,7 +305,6 @@ class AdminController extends Controller
 
         } catch (\Exception $e) {
             Log::error('Failed to retrieve statistics', [
-                'admin_id' => auth()->id(),
                 'error' => $e->getMessage(),
             ]);
 

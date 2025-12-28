@@ -126,28 +126,37 @@ class ItemService
      * @param User $seller
      * @return Item
      */
-    public function createItem(array $data, array $images, User $seller): Item
+    public function createItem(array $data, User $seller, array $images): Item
     {
         DB::beginTransaction();
 
         try {
-            // If it's a donation, ensure price is null
+            // If donation, set quantity fields; otherwise default to 1
             if ($data['is_donation']) {
-                $data['price'] = null;
+                $donationQuantity = $data['donation_quantity'] ?? 1;
+                $data['donation_quantity'] = $donationQuantity;
+                $data['donation_quantity_available'] = $donationQuantity;
+                $data['price'] = null; // Donations have no price
+            } else {
+                // Sale items always have quantity = 1 (unique items)
+                $data['donation_quantity'] = 1;
+                $data['donation_quantity_available'] = 1;
             }
 
             // Create item
-            $item = $seller->items()->create([
+            $item = Item::create([
+                'seller_id' => $seller->id,
                 'title' => $data['title'],
                 'description' => $data['description'],
                 'category' => $data['category'],
-                'size' => $data['size'],
+                'size' => $data['size'] ?? null,
                 'condition' => $data['condition'],
                 'gender' => $data['gender'] ?? 'unisex',
                 'brand' => $data['brand'] ?? null,
                 'color' => $data['color'] ?? null,
                 'price' => $data['price'] ?? null,
                 'is_donation' => $data['is_donation'],
+                'donation_quantity' => $data['donation_quantity'],           // NEW
                 'status' => 'available',
                 'views_count' => 0,
             ]);
@@ -171,6 +180,7 @@ class ItemService
                 'item_id' => $item->id,
                 'seller_id' => $seller->id,
                 'is_donation' => $item->is_donation,
+                'donation_quantity' => $item->donation_quantity,
             ]);
 
             return $item;
