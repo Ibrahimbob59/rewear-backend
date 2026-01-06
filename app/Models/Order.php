@@ -29,6 +29,9 @@ class Order extends Model
         'completed_at',
         'cancelled_at',
         'cancellation_reason',
+        'distributed_at',
+        'distribution_notes',
+        'people_helped',
     ];
 
     protected $casts = [
@@ -39,6 +42,8 @@ class Order extends Model
         'delivered_at' => 'datetime',
         'completed_at' => 'datetime',
         'cancelled_at' => 'datetime',
+        'distributed_at' => 'datetime',
+        'people_helped' => 'integer',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'deleted_at' => 'datetime',

@@ -77,7 +77,8 @@ class OrderController extends Controller
                 ], 401);
             }
 
-            $order = $this->orderService->createOrder($data, $user);
+            // UPDATED: Changed parameter order to match new OrderService signature
+            $order = $this->orderService->createOrder($user, $data);
 
             return response()->json([
                 'success' => true,
@@ -94,8 +95,8 @@ class OrderController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage(),
-                'error' => config('app.debug') ? $e->getMessage() : 'Failed to place order',
-            ], 400);
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
         }
     }
 
@@ -104,14 +105,14 @@ class OrderController extends Controller
      *     path="/api/orders",
      *     tags={"Orders"},
      *     summary="Get buyer's orders",
-     *     description="Get all orders where the authenticated user is the buyer",
+     *     description="Get orders placed by the authenticated user (as buyer)",
      *     security={{"bearerAuth": {}}},
      *     @OA\Parameter(
      *         name="per_page",
      *         in="query",
-     *         description="Orders per page (1-50)",
+     *         description="Number of orders per page (1-50)",
      *         required=false,
-     *         @OA\Schema(type="integer", default=15)
+     *         @OA\Schema(type="integer", minimum=1, maximum=50, default=15)
      *     ),
      *     @OA\Response(
      *         response=200,
@@ -119,17 +120,8 @@ class OrderController extends Controller
      *         @OA\JsonContent(
      *             @OA\Property(property="success", type="boolean", example=true),
      *             @OA\Property(property="message", type="string", example="Orders retrieved successfully"),
-     *             @OA\Property(property="data", type="object",
-     *                 @OA\Property(property="orders", type="array",
-     *                     @OA\Items(type="object")
-     *                 )
-     *             ),
-     *             @OA\Property(property="meta", type="object",
-     *                 @OA\Property(property="current_page", type="integer"),
-     *                 @OA\Property(property="total", type="integer"),
-     *                 @OA\Property(property="per_page", type="integer"),
-     *                 @OA\Property(property="last_page", type="integer")
-     *             )
+     *             @OA\Property(property="data", type="array", @OA\Items(type="object")),
+     *             @OA\Property(property="meta", type="object")
      *         )
      *     ),
      *     @OA\Response(response=401, description="Unauthorized")
@@ -138,13 +130,15 @@ class OrderController extends Controller
     public function index(Request $request): JsonResponse
     {
         try {
-            $perPage = $request->input('per_page', 15);
-            $orders = $this->orderService->getBuyerOrders(auth()->id(), $perPage);
+            $userId = auth()->id();
+            $perPage = min(max((int)$request->input('per_page', 15), 1), 50);
+
+            $orders = $this->orderService->getBuyerOrders($userId, $perPage);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Orders retrieved successfully',
-                'data' => new OrderCollection($orders),
+                'data' => OrderResource::collection($orders),
                 'meta' => [
                     'current_page' => $orders->currentPage(),
                     'total' => $orders->total(),
@@ -153,7 +147,7 @@ class OrderController extends Controller
                 ],
             ]);
         } catch (\Exception $e) {
-            Log::error('Failed to retrieve buyer orders', [
+            Log::error('Failed to retrieve orders', [
                 'user_id' => auth()->id(),
                 'error' => $e->getMessage(),
             ]);
@@ -171,22 +165,22 @@ class OrderController extends Controller
      *     path="/api/orders/as-seller",
      *     tags={"Orders"},
      *     summary="Get seller's orders",
-     *     description="Get all orders where the authenticated user is the seller",
+     *     description="Get orders for items sold by the authenticated user (as seller)",
      *     security={{"bearerAuth": {}}},
      *     @OA\Parameter(
      *         name="per_page",
      *         in="query",
-     *         description="Orders per page (1-50)",
+     *         description="Number of orders per page (1-50)",
      *         required=false,
-     *         @OA\Schema(type="integer", default=15)
+     *         @OA\Schema(type="integer", minimum=1, maximum=50, default=15)
      *     ),
      *     @OA\Response(
      *         response=200,
-     *         description="Sales retrieved successfully",
+     *         description="Seller orders retrieved successfully",
      *         @OA\JsonContent(
      *             @OA\Property(property="success", type="boolean", example=true),
-     *             @OA\Property(property="message", type="string", example="Sales retrieved successfully"),
-     *             @OA\Property(property="data", type="object"),
+     *             @OA\Property(property="message", type="string", example="Seller orders retrieved successfully"),
+     *             @OA\Property(property="data", type="array", @OA\Items(type="object")),
      *             @OA\Property(property="meta", type="object")
      *         )
      *     ),
@@ -196,13 +190,15 @@ class OrderController extends Controller
     public function asSeller(Request $request): JsonResponse
     {
         try {
-            $perPage = $request->input('per_page', 15);
-            $orders = $this->orderService->getSellerOrders(auth()->id(), $perPage);
+            $userId = auth()->id();
+            $perPage = min(max((int)$request->input('per_page', 15), 1), 50);
+
+            $orders = $this->orderService->getSellerOrders($userId, $perPage);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Sales retrieved successfully',
-                'data' => new OrderCollection($orders),
+                'message' => 'Seller orders retrieved successfully',
+                'data' => OrderResource::collection($orders),
                 'meta' => [
                     'current_page' => $orders->currentPage(),
                     'total' => $orders->total(),
@@ -218,7 +214,7 @@ class OrderController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to retrieve sales',
+                'message' => 'Failed to retrieve seller orders',
                 'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }
@@ -229,7 +225,7 @@ class OrderController extends Controller
      *     path="/api/orders/{id}",
      *     tags={"Orders"},
      *     summary="Get order details",
-     *     description="Get detailed information about a specific order (buyer or seller only)",
+     *     description="Get detailed information about a specific order",
      *     security={{"bearerAuth": {}}},
      *     @OA\Parameter(
      *         name="id",
@@ -240,36 +236,38 @@ class OrderController extends Controller
      *     ),
      *     @OA\Response(
      *         response=200,
-     *         description="Order retrieved successfully",
+     *         description="Order details retrieved successfully",
      *         @OA\JsonContent(
      *             @OA\Property(property="success", type="boolean", example=true),
-     *             @OA\Property(property="message", type="string", example="Order retrieved successfully"),
+     *             @OA\Property(property="message", type="string", example="Order details retrieved successfully"),
      *             @OA\Property(property="data", type="object")
      *         )
      *     ),
      *     @OA\Response(response=401, description="Unauthorized"),
+     *     @OA\Response(response=403, description="Cannot access this order"),
      *     @OA\Response(response=404, description="Order not found")
      * )
      */
     public function show(int $id): JsonResponse
     {
         try {
-            $order = $this->orderService->getOrderById($id, auth()->id());
+            $userId = auth()->id();
+            $order = $this->orderService->getOrderById($id, $userId);
 
             if (!$order) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Order not found',
+                    'message' => 'Order not found or you do not have permission to view it',
                 ], 404);
             }
 
             return response()->json([
                 'success' => true,
-                'message' => 'Order retrieved successfully',
+                'message' => 'Order details retrieved successfully',
                 'data' => new OrderResource($order),
             ]);
         } catch (\Exception $e) {
-            Log::error('Failed to retrieve order', [
+            Log::error('Failed to retrieve order details', [
                 'order_id' => $id,
                 'user_id' => auth()->id(),
                 'error' => $e->getMessage(),
@@ -277,9 +275,9 @@ class OrderController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to retrieve order',
+                'message' => 'Order not found',
                 'error' => config('app.debug') ? $e->getMessage() : null,
-            ], 500);
+            ], 404);
         }
     }
 
@@ -328,21 +326,23 @@ class OrderController extends Controller
         try {
             $order = Order::findOrFail($id);
 
-            // Authorization: only buyer can cancel
+            // Authorization check - only buyer can cancel order
             if ($order->buyer_id !== auth()->id()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Unauthorized to cancel this order',
+                    'message' => 'Only the buyer can cancel this order',
                 ], 403);
             }
 
             $data = $request->validated();
-            $cancelledOrder = $this->orderService->cancelOrder($order, $data['reason']);
+            $reason = $data['reason'];
+
+            $order = $this->orderService->cancelOrder($order, $reason);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Order cancelled successfully',
-                'data' => new OrderResource($cancelledOrder),
+                'data' => new OrderResource($order),
             ]);
         } catch (\Exception $e) {
             Log::error('Failed to cancel order', [
@@ -354,7 +354,70 @@ class OrderController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage(),
-                'error' => config('app.debug') ? $e->getMessage() : 'Failed to cancel order',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 400);
+        }
+    }
+
+    /**
+     * @OA\Post(
+     *     path="/api/orders/{id}/confirm",
+     *     tags={"Orders"},
+     *     summary="Confirm order (seller)",
+     *     description="Seller confirms they have the item ready for pickup",
+     *     security={{"bearerAuth": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         description="Order ID",
+     *         required=true,
+     *         @OA\Schema(type="integer", example=1)
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Order confirmed successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="Order confirmed successfully"),
+     *             @OA\Property(property="data", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(response=400, description="Cannot confirm order at this stage"),
+     *     @OA\Response(response=403, description="Only seller can confirm order"),
+     *     @OA\Response(response=404, description="Order not found")
+     * )
+     */
+    public function confirm(int $id): JsonResponse
+    {
+        try {
+            $order = Order::findOrFail($id);
+
+            // Authorization check - only seller can confirm order
+            if ($order->seller_id !== auth()->id()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Only the seller can confirm this order',
+                ], 403);
+            }
+
+            $order = $this->orderService->confirmOrder($order);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Order confirmed successfully. We will find a driver for pickup.',
+                'data' => new OrderResource($order),
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to confirm order', [
+                'order_id' => $id,
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+                'error' => config('app.debug') ? $e->getMessage() : null,
             ], 400);
         }
     }

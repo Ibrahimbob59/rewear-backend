@@ -122,6 +122,18 @@ class User extends Authenticatable
         return $this->hasMany(DriverApplication::class);
     }
 
+    public function activeDeliveries(): HasMany
+    {
+        return $this->hasMany(Delivery::class, 'driver_id')
+            ->whereIn('status', ['assigned', 'picked_up', 'in_transit']);
+    }
+
+    public function completedDeliveries(): HasMany
+    {
+        return $this->hasMany(Delivery::class, 'driver_id')
+            ->where('status', 'delivered');
+    }
+
     // ==================== AUTH HELPER METHODS ====================
 
     public function hasVerifiedEmail(): bool
@@ -177,4 +189,66 @@ class User extends Authenticatable
             ->whereIn('status', ['delivered', 'completed'])
             ->count();
     }
+
+    /**
+     * Check if user can apply as driver
+     */
+    public function canApplyAsDriver(): bool
+    {
+        if ($this->driver_verified) {
+            return false;
+        }
+
+        $pendingApplication = $this->driverApplication()
+            ->whereIn('status', ['pending', 'under_review'])
+            ->exists();
+
+        return !$pendingApplication;
+    }
+
+    /**
+     * Get driver statistics
+     */
+    public function getDriverStats(): array
+    {
+        $totalDeliveries = $this->completedDeliveries()->count();
+        $totalEarnings = $this->completedDeliveries()->sum('driver_earning');
+        $activeDeliveries = $this->activeDeliveries()->count();
+
+        return [
+            'total_deliveries' => $totalDeliveries,
+            'total_earnings' => (float) $totalEarnings,
+            'active_deliveries' => $activeDeliveries,
+            'average_earning_per_delivery' => $totalDeliveries > 0 ? round($totalEarnings / $totalDeliveries, 2) : 0,
+        ];
+    }
+
+    /**
+     * Get charity impact statistics
+     */
+    public function getCharityStats(): array
+    {
+        if (!$this->hasRole('charity')) {
+            return [];
+        }
+
+        $donationOrders = $this->purchasedOrders()->where('item_price', 0);
+        $totalDonations = $donationOrders->count();
+        $peopleHelped = $donationOrders->sum('people_helped') ?: 0;
+
+        return [
+            'total_donations_received' => $totalDonations,
+            'total_people_helped' => $peopleHelped,
+            'average_people_per_donation' => $totalDonations > 0 ? round($peopleHelped / $totalDonations, 1) : 0,
+        ];
+    }
+
+    /**
+     * Get unread notifications count
+     */
+    public function getUnreadNotificationsCountAttribute(): int
+    {
+        return $this->notifications()->where('is_read', false)->count();
+    }
+
 }

@@ -99,19 +99,17 @@ class FirebaseStorageService
 
         // Upload to Firebase
         $object = $this->bucket->upload($fileContents, [
-        'name' => $firebasePath,
-        'metadata' => [
-            'contentType' => $image->getMimeType(),
+            'name' => $firebasePath,
             'metadata' => [
-                'firebaseStorageDownloadTokens' => $token,
-
-                'itemId' => (string)$itemId,
-                'originalName' => $image->getClientOriginalName(),
-                'uploadedAt' => now()->toIso8601String(),
+                'contentType' => $image->getMimeType(),
+                'metadata' => [
+                    'firebaseStorageDownloadTokens' => $token,
+                    'itemId' => (string)$itemId,
+                    'originalName' => $image->getClientOriginalName(),
+                    'uploadedAt' => now()->toIso8601String(),
+                ],
             ],
-        ],
-    ]);
-
+        ]);
 
         // Make the file publicly accessible
         $object->update([
@@ -122,7 +120,6 @@ class FirebaseStorageService
 
         // Get public URL
         $publicUrl = $this->getPublicUrl($firebasePath, $token);
-
 
         Log::info('Image uploaded to Firebase successfully', [
             'item_id' => $itemId,
@@ -135,6 +132,108 @@ class FirebaseStorageService
             'display_order' => $index,
             'is_primary' => $index === 0, // First image is primary
         ];
+    }
+
+    /**
+     * Upload driver application documents to Firebase Storage
+     *
+     * @param array $documents Array of UploadedFile instances keyed by document type
+     * @param int $userId
+     * @return array Array of document URLs keyed by document type
+     */
+    public function uploadDriverDocuments(array $documents, int $userId): array
+    {
+        $uploadedUrls = [];
+        $allowedTypes = ['id_document', 'driving_license', 'vehicle_registration'];
+
+        foreach ($documents as $type => $file) {
+            if (!in_array($type, $allowedTypes)) {
+                continue;
+            }
+
+            if (!$file || !$file->isValid()) {
+                continue;
+            }
+
+            try {
+                $url = $this->uploadDriverDocument($file, $userId, $type);
+                if ($url) {
+                    $uploadedUrls[$type] = $url;
+                }
+            } catch (\Exception $e) {
+                Log::error('Failed to upload driver document to Firebase', [
+                    'user_id' => $userId,
+                    'document_type' => $type,
+                    'error' => $e->getMessage(),
+                ]);
+                // Continue with other documents even if one fails
+                throw new \Exception("Failed to upload {$type}: " . $e->getMessage());
+            }
+        }
+
+        return $uploadedUrls;
+    }
+
+    /**
+     * Upload a single driver document to Firebase Storage
+     *
+     * @param UploadedFile $file
+     * @param int $userId
+     * @param string $documentType
+     * @return string|null Firebase Storage URL
+     */
+    protected function uploadDriverDocument(UploadedFile $file, int $userId, string $documentType): ?string
+    {
+        // Validate document file
+        if (!$this->isValidDocument($file)) {
+            throw new \Exception('Invalid document file');
+        }
+
+        // Generate unique filename
+        $filename = $this->generateDocumentFilename($file, $userId, $documentType);
+
+        // Define Firebase storage path
+        $firebasePath = "driver_documents/{$userId}/{$filename}";
+
+        // Get file contents
+        $fileContents = file_get_contents($file->getRealPath());
+
+        // Generate token for public access
+        $token = (string) \Illuminate\Support\Str::uuid();
+
+        // Upload to Firebase
+        $object = $this->bucket->upload($fileContents, [
+            'name' => $firebasePath,
+            'metadata' => [
+                'contentType' => $file->getMimeType(),
+                'metadata' => [
+                    'firebaseStorageDownloadTokens' => $token,
+                    'userId' => (string)$userId,
+                    'documentType' => $documentType,
+                    'originalName' => $file->getClientOriginalName(),
+                    'uploadedAt' => now()->toIso8601String(),
+                ],
+            ],
+        ]);
+
+        // Make the file publicly accessible
+        $object->update([
+            'acl' => [],
+        ], [
+            'predefinedAcl' => 'publicRead'
+        ]);
+
+        // Get public URL
+        $publicUrl = $this->getPublicUrl($firebasePath, $token);
+
+        Log::info('Driver document uploaded to Firebase successfully', [
+            'user_id' => $userId,
+            'document_type' => $documentType,
+            'path' => $firebasePath,
+            'url' => $publicUrl,
+        ]);
+
+        return $publicUrl;
     }
 
     /**
@@ -206,6 +305,74 @@ class FirebaseStorageService
     }
 
     /**
+     * Delete driver documents from Firebase Storage
+     *
+     * @param int $userId
+     * @return bool
+     */
+    public function deleteDriverDocuments(int $userId): bool
+    {
+        try {
+            $prefix = "driver_documents/{$userId}/";
+
+            // List all objects with this prefix
+            $objects = $this->bucket->objects([
+                'prefix' => $prefix,
+            ]);
+
+            // Delete each object
+            foreach ($objects as $object) {
+                $object->delete();
+            }
+
+            Log::info('All driver documents deleted', ['user_id' => $userId]);
+            return true;
+        } catch (\Exception $e) {
+            Log::error('Failed to delete driver documents from Firebase', [
+                'user_id' => $userId,
+                'error' => $e->getMessage(),
+            ]);
+            return false;
+        }
+    }
+
+    /**
+     * Delete specific driver document URL
+     *
+     * @param string $documentUrl
+     * @return bool
+     */
+    public function deleteDriverDocument(string $documentUrl): bool
+    {
+        try {
+            // Extract path from URL
+            $path = $this->extractPathFromUrl($documentUrl);
+
+            if (!$path) {
+                Log::warning('Could not extract path from driver document URL', ['url' => $documentUrl]);
+                return false;
+            }
+
+            // Delete from Firebase
+            $object = $this->bucket->object($path);
+
+            if ($object->exists()) {
+                $object->delete();
+                Log::info('Driver document deleted from Firebase', ['path' => $path]);
+                return true;
+            }
+
+            return true; // Already deleted
+        } catch (\Exception $e) {
+            Log::error('Failed to delete driver document from Firebase', [
+                'url' => $documentUrl,
+                'error' => $e->getMessage(),
+            ]);
+            return false;
+        }
+    }
+
+    /**
      * Validate image file
      *
      * @param UploadedFile $image
@@ -234,6 +401,38 @@ class FirebaseStorageService
     }
 
     /**
+     * Validate document file (images and PDFs)
+     *
+     * @param UploadedFile $file
+     * @return bool
+     */
+    protected function isValidDocument(UploadedFile $file): bool
+    {
+        // Check if file is valid
+        if (!$file->isValid()) {
+            return false;
+        }
+
+        // Check mime type - allow images and PDFs
+        $allowedMimes = [
+            'image/jpeg', 'image/png', 'image/jpg', 'image/webp',
+            'application/pdf'
+        ];
+
+        if (!in_array($file->getMimeType(), $allowedMimes)) {
+            return false;
+        }
+
+        // Check file size (max 10MB for documents)
+        $maxSize = 10 * 1024 * 1024; // 10MB in bytes
+        if ($file->getSize() > $maxSize) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
      * Generate unique filename for image
      *
      * @param UploadedFile $image
@@ -247,6 +446,23 @@ class FirebaseStorageService
         $random = Str::random(8);
 
         return "item_{$itemId}_{$timestamp}_{$random}.{$extension}";
+    }
+
+    /**
+     * Generate unique filename for driver document
+     *
+     * @param UploadedFile $file
+     * @param int $userId
+     * @param string $documentType
+     * @return string
+     */
+    protected function generateDocumentFilename(UploadedFile $file, int $userId, string $documentType): string
+    {
+        $extension = $file->getClientOriginalExtension();
+        $timestamp = now()->timestamp;
+        $random = Str::random(8);
+
+        return "user_{$userId}_{$documentType}_{$timestamp}_{$random}.{$extension}";
     }
 
     /**

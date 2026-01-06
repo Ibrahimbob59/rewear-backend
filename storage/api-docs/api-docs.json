@@ -228,6 +228,342 @@
                 }
             }
         },
+        "/api/admin/driver-applications": {
+            "get": {
+                "tags": [
+                    "Admin - Drivers"
+                ],
+                "summary": "Get all driver applications",
+                "description": "Get paginated list of driver applications with filters",
+                "operationId": "87209b07869ea442fad3646c0a3c0240",
+                "parameters": [
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": "Filter by application status",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "pending",
+                                "under_review",
+                                "approved",
+                                "rejected"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Driver applications retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - Admin access required"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/admin/driver-applications/{id}": {
+            "get": {
+                "tags": [
+                    "Admin - Drivers"
+                ],
+                "summary": "Get driver application details",
+                "description": "Get detailed information about a specific driver application",
+                "operationId": "2b08cb37b3f91a2c957a33abe8af59ad",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Application ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Application details retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Application not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/admin/driver-applications/{id}/approve": {
+            "post": {
+                "tags": [
+                    "Admin - Drivers"
+                ],
+                "summary": "Approve driver application",
+                "description": "Approve a pending driver application",
+                "operationId": "f9193d7ab973f339b4920a7b68e72c96",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Application ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Application approved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Driver application approved successfully"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Application cannot be approved"
+                    },
+                    "404": {
+                        "description": "Application not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/admin/driver-applications/{id}/reject": {
+            "post": {
+                "tags": [
+                    "Admin - Drivers"
+                ],
+                "summary": "Reject driver application",
+                "description": "Reject a pending driver application with reason",
+                "operationId": "04d2b1f20ddf28b7b6274d02672477e3",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Application ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "reason"
+                                ],
+                                "properties": {
+                                    "reason": {
+                                        "description": "Reason for rejection",
+                                        "type": "string",
+                                        "example": "Incomplete documentation"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Application rejected successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Driver application rejected"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Application cannot be rejected"
+                    },
+                    "404": {
+                        "description": "Application not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/admin/drivers": {
+            "get": {
+                "tags": [
+                    "Admin - Drivers"
+                ],
+                "summary": "Get all verified drivers",
+                "description": "Get list of all approved and verified drivers",
+                "operationId": "0bf23726a1262eb5d40ac1cce2538012",
+                "responses": {
+                    "200": {
+                        "description": "Drivers retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/admin/driver-applications/stats": {
+            "get": {
+                "tags": [
+                    "Admin - Drivers"
+                ],
+                "summary": "Get driver application statistics",
+                "description": "Get statistics about driver applications",
+                "operationId": "6f93a66e25f4433a79787cc2f362c05e",
+                "responses": {
+                    "200": {
+                        "description": "Statistics retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "total_applications": {
+                                                    "type": "integer",
+                                                    "example": 45
+                                                },
+                                                "pending_applications": {
+                                                    "type": "integer",
+                                                    "example": 8
+                                                },
+                                                "approved_applications": {
+                                                    "type": "integer",
+                                                    "example": 32
+                                                },
+                                                "approval_rate": {
+                                                    "type": "number",
+                                                    "example": 80.5
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/addresses": {
             "get": {
                 "tags": [
@@ -1124,6 +1460,1403 @@
                 ]
             }
         },
+        "/api/charity/dashboard": {
+            "get": {
+                "tags": [
+                    "Charity"
+                ],
+                "summary": "Get charity dashboard",
+                "description": "Get charity's impact statistics and overview",
+                "operationId": "240c2318f2969d63e0758ca26e15ea0b",
+                "responses": {
+                    "200": {
+                        "description": "Dashboard data retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "impact_stats": {
+                                                    "type": "object"
+                                                },
+                                                "recent_donations": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "pending_distributions": {
+                                                    "type": "integer",
+                                                    "example": 3
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Not a registered charity"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/charity/available-donations": {
+            "get": {
+                "tags": [
+                    "Charity"
+                ],
+                "summary": "Get available donations",
+                "description": "Get list of available donation items",
+                "operationId": "8fd923835417946bda71b35ec92a675b",
+                "parameters": [
+                    {
+                        "name": "category",
+                        "in": "query",
+                        "description": "Filter by category",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "condition",
+                        "in": "query",
+                        "description": "Filter by condition",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "new",
+                                "like_new",
+                                "good",
+                                "fair"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "Search keyword",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Available donations retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Not a registered charity"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/charity/accept-donation/{itemId}": {
+            "post": {
+                "tags": [
+                    "Charity"
+                ],
+                "summary": "Accept donation item",
+                "description": "Accept a donation item for delivery to charity",
+                "operationId": "9eedbd5989912996ade4f987ebc71194",
+                "parameters": [
+                    {
+                        "name": "itemId",
+                        "in": "path",
+                        "description": "Item ID to accept",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "delivery_address_id"
+                                ],
+                                "properties": {
+                                    "delivery_address_id": {
+                                        "description": "Charity's delivery address ID",
+                                        "type": "integer",
+                                        "example": 1
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Donation accepted successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Donation accepted successfully"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Donation not available or already accepted"
+                    },
+                    "403": {
+                        "description": "Not a registered charity"
+                    },
+                    "404": {
+                        "description": "Item not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/charity/my-donations": {
+            "get": {
+                "tags": [
+                    "Charity"
+                ],
+                "summary": "Get charity's received donations",
+                "description": "Get all donations received by the charity",
+                "operationId": "2e60274ddab5b65ac20b36cf981f1f99",
+                "parameters": [
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": "Filter by order status",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "pending",
+                                "confirmed",
+                                "in_transit",
+                                "completed"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Charity donations retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Not a registered charity"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/charity/mark-distributed/{orderId}": {
+            "post": {
+                "tags": [
+                    "Charity"
+                ],
+                "summary": "Mark donation as distributed",
+                "description": "Mark a received donation as distributed to people in need",
+                "operationId": "aec077f9f7d5b9a8050b5ef92c90795c",
+                "parameters": [
+                    {
+                        "name": "orderId",
+                        "in": "path",
+                        "description": "Order ID to mark as distributed",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "people_helped"
+                                ],
+                                "properties": {
+                                    "people_helped": {
+                                        "description": "Number of people helped",
+                                        "type": "integer",
+                                        "example": 5
+                                    },
+                                    "distribution_notes": {
+                                        "description": "Optional distribution notes",
+                                        "type": "string",
+                                        "example": "Distributed to homeless shelter"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Donation marked as distributed successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Donation marked as distributed successfully"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Order not eligible for distribution"
+                    },
+                    "403": {
+                        "description": "Not authorized to mark this donation"
+                    },
+                    "404": {
+                        "description": "Order not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/charity/impact-stats": {
+            "get": {
+                "tags": [
+                    "Charity"
+                ],
+                "summary": "Get charity impact statistics",
+                "description": "Get detailed impact statistics for the charity",
+                "operationId": "0ac69577a848947a6b26cc2fc154353e",
+                "responses": {
+                    "200": {
+                        "description": "Impact statistics retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "total_donations_received": {
+                                                    "type": "integer",
+                                                    "example": 25
+                                                },
+                                                "total_people_helped": {
+                                                    "type": "integer",
+                                                    "example": 150
+                                                },
+                                                "this_month_donations": {
+                                                    "type": "integer",
+                                                    "example": 8
+                                                },
+                                                "completion_rate": {
+                                                    "type": "number",
+                                                    "example": 96.5
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Not a registered charity"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/charity/recommended-donations": {
+            "get": {
+                "tags": [
+                    "Charity"
+                ],
+                "summary": "Get recommended donations",
+                "description": "Get donation recommendations based on charity's history",
+                "operationId": "eea7404b0bce94c7f4376a6fb7fa6173",
+                "responses": {
+                    "200": {
+                        "description": "Recommended donations retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Not a registered charity"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/deliveries": {
+            "get": {
+                "tags": [
+                    "Deliveries"
+                ],
+                "summary": "List all deliveries (admin only)",
+                "description": "Get paginated list of all deliveries for admin management",
+                "operationId": "7fe9c942feb58b36745578a3d69876b7",
+                "parameters": [
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "Deliveries per page (1-50)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": "Filter by delivery status",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "pending",
+                                "assigned",
+                                "in_transit",
+                                "delivered",
+                                "cancelled"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Deliveries retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Deliveries retrieved successfully"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Admin access required"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/deliveries/{id}": {
+            "get": {
+                "tags": [
+                    "Deliveries"
+                ],
+                "summary": "Get delivery details",
+                "description": "Get detailed information about a specific delivery",
+                "operationId": "1e897b127e551e304479f4cf228efa40",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Delivery ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Delivery details retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Delivery details retrieved successfully"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Access denied"
+                    },
+                    "404": {
+                        "description": "Delivery not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/deliveries/{id}/assign-driver": {
+            "post": {
+                "tags": [
+                    "Deliveries"
+                ],
+                "summary": "Assign driver to delivery (admin only)",
+                "description": "Manually assign a specific driver to a delivery",
+                "operationId": "c9c750e79533d934d20e33303adb4659",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Delivery ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "driver_id"
+                                ],
+                                "properties": {
+                                    "driver_id": {
+                                        "description": "ID of the driver to assign",
+                                        "type": "integer",
+                                        "example": 5
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Driver assigned successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Driver assigned successfully"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Cannot assign driver or driver not available"
+                    },
+                    "403": {
+                        "description": "Admin access required"
+                    },
+                    "404": {
+                        "description": "Delivery not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/deliveries/{id}/pickup": {
+            "post": {
+                "tags": [
+                    "Deliveries"
+                ],
+                "summary": "Mark delivery as picked up",
+                "description": "Mark delivery as picked up by the assigned driver",
+                "operationId": "c262299306142981e58a2c5fa49f914f",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Delivery ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "notes": {
+                                        "description": "Optional pickup notes",
+                                        "type": "string",
+                                        "example": "Item picked up from seller"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Delivery marked as picked up successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Delivery marked as picked up"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Only assigned driver can mark as picked up"
+                    },
+                    "404": {
+                        "description": "Delivery not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/deliveries/{id}/deliver": {
+            "post": {
+                "tags": [
+                    "Deliveries"
+                ],
+                "summary": "Mark delivery as delivered",
+                "description": "Mark delivery as completed by the driver",
+                "operationId": "59950faf3dc8745224ae482f1da3d34a",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Delivery ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "notes": {
+                                        "description": "Optional delivery notes",
+                                        "type": "string",
+                                        "example": "Delivered to customer"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Delivery marked as delivered successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Delivery completed successfully"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Only assigned driver can mark as delivered"
+                    },
+                    "404": {
+                        "description": "Delivery not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/deliveries/{id}/cancel": {
+            "post": {
+                "tags": [
+                    "Deliveries"
+                ],
+                "summary": "Cancel delivery (before pickup only)",
+                "description": "Cancel a delivery before item pickup. Cannot be done after pickup.",
+                "operationId": "513e38af86d2da2c101ac6dc36c66e5f",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Delivery ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "reason"
+                                ],
+                                "properties": {
+                                    "reason": {
+                                        "description": "Reason for delivery cancellation",
+                                        "type": "string",
+                                        "example": "Seller not available"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Delivery cancelled successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Delivery cancelled. A new delivery has been created for reassignment."
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Cannot cancel delivery after pickup"
+                    },
+                    "403": {
+                        "description": "Only assigned driver or admin can cancel"
+                    },
+                    "404": {
+                        "description": "Delivery not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/driver-applications": {
+            "post": {
+                "tags": [
+                    "Driver Applications"
+                ],
+                "summary": "Submit driver application",
+                "description": "Submit an application to become a driver",
+                "operationId": "625c283614be17ad72e462d1db010caf",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "full_name",
+                                    "phone",
+                                    "address",
+                                    "city",
+                                    "vehicle_type"
+                                ],
+                                "properties": {
+                                    "full_name": {
+                                        "type": "string",
+                                        "example": "John Doe"
+                                    },
+                                    "phone": {
+                                        "type": "string",
+                                        "example": "+96170123456"
+                                    },
+                                    "email": {
+                                        "type": "string",
+                                        "example": "john@example.com"
+                                    },
+                                    "address": {
+                                        "type": "string",
+                                        "example": "123 Main Street"
+                                    },
+                                    "city": {
+                                        "type": "string",
+                                        "example": "Beirut"
+                                    },
+                                    "vehicle_type": {
+                                        "type": "string",
+                                        "enum": [
+                                            "car",
+                                            "motorcycle",
+                                            "bicycle"
+                                        ]
+                                    },
+                                    "id_document": {
+                                        "description": "ID document image",
+                                        "type": "string",
+                                        "format": "binary"
+                                    },
+                                    "driving_license": {
+                                        "description": "Driving license image",
+                                        "type": "string",
+                                        "format": "binary"
+                                    },
+                                    "vehicle_registration": {
+                                        "description": "Vehicle registration (optional for bicycles)",
+                                        "type": "string",
+                                        "format": "binary"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Application submitted successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Driver application submitted successfully"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Validation error or user already has application"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/driver-applications/my-application": {
+            "get": {
+                "tags": [
+                    "Driver Applications"
+                ],
+                "summary": "Get user's driver application",
+                "description": "Get the current user's driver application status",
+                "operationId": "9728d0a3ef96e13f52391cce9053980b",
+                "responses": {
+                    "200": {
+                        "description": "Application retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "No application found"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/driver-applications/eligibility": {
+            "get": {
+                "tags": [
+                    "Driver Applications"
+                ],
+                "summary": "Check driver application eligibility",
+                "description": "Check if the current user can apply to become a driver",
+                "operationId": "974eeebaa421841903d3ab3eb0b0fddc",
+                "responses": {
+                    "200": {
+                        "description": "Eligibility checked successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "can_apply": {
+                                                    "type": "boolean",
+                                                    "example": true
+                                                },
+                                                "reason": {
+                                                    "type": "string",
+                                                    "example": "You can apply to become a driver"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/driver/dashboard": {
+            "get": {
+                "tags": [
+                    "Driver Dashboard"
+                ],
+                "summary": "Get driver dashboard overview",
+                "description": "Get driver's statistics and overview",
+                "operationId": "517bae784b207eb6ba340f88b5d4f6a3",
+                "responses": {
+                    "200": {
+                        "description": "Dashboard data retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "stats": {
+                                                    "type": "object"
+                                                },
+                                                "active_deliveries": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "available_deliveries": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object"
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Not a verified driver"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/driver/deliveries": {
+            "get": {
+                "tags": [
+                    "Driver Dashboard"
+                ],
+                "summary": "Get driver's deliveries",
+                "description": "Get all deliveries assigned to the driver",
+                "operationId": "ca1f29c9d599522783b8c82e01fcd817",
+                "parameters": [
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": "Filter by delivery status",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "assigned",
+                                "picked_up",
+                                "in_transit",
+                                "delivered"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Driver deliveries retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Not a verified driver"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/driver/available-deliveries": {
+            "get": {
+                "tags": [
+                    "Driver Dashboard"
+                ],
+                "summary": "Get available deliveries",
+                "description": "Get pending deliveries available for assignment",
+                "operationId": "7cf9bbb00980510f8c9ebc65cd2f7420",
+                "responses": {
+                    "200": {
+                        "description": "Available deliveries retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Not a verified driver"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/driver/accept-delivery/{id}": {
+            "post": {
+                "tags": [
+                    "Driver Dashboard"
+                ],
+                "summary": "Accept delivery assignment",
+                "description": "Accept an available delivery for assignment",
+                "operationId": "9fb62bdcbe16854d5cb28cf23e6fad3d",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Delivery ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Delivery accepted successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Delivery accepted successfully"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Delivery not available or driver has too many active deliveries"
+                    },
+                    "403": {
+                        "description": "Not a verified driver"
+                    },
+                    "404": {
+                        "description": "Delivery not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/driver/earnings": {
+            "get": {
+                "tags": [
+                    "Driver Dashboard"
+                ],
+                "summary": "Get driver earnings",
+                "description": "Get driver's earning statistics and history",
+                "operationId": "4475851a6742a8a68cfae1672571bc84",
+                "responses": {
+                    "200": {
+                        "description": "Earnings retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "total_earnings": {
+                                                    "type": "number",
+                                                    "example": 125.5
+                                                },
+                                                "this_month_earnings": {
+                                                    "type": "number",
+                                                    "example": 45.25
+                                                },
+                                                "total_deliveries": {
+                                                    "type": "integer",
+                                                    "example": 23
+                                                },
+                                                "this_month_deliveries": {
+                                                    "type": "integer",
+                                                    "example": 8
+                                                },
+                                                "average_earning_per_delivery": {
+                                                    "type": "number",
+                                                    "example": 5.46
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Not a verified driver"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/favorites/{itemId}": {
             "post": {
                 "tags": [
@@ -1296,6 +3029,279 @@
                         "bearerAuth": []
                     }
                 ]
+            }
+        },
+        "/api/maps/calculate-delivery-fee": {
+            "post": {
+                "tags": [
+                    "Maps"
+                ],
+                "summary": "Calculate delivery fee",
+                "description": "Calculate delivery fee based on pickup and delivery coordinates",
+                "operationId": "4e5f980b117eb40e5778a583067465df",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "pickup_latitude",
+                                    "pickup_longitude",
+                                    "delivery_latitude",
+                                    "delivery_longitude"
+                                ],
+                                "properties": {
+                                    "pickup_latitude": {
+                                        "description": "Pickup location latitude",
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 33.8886
+                                    },
+                                    "pickup_longitude": {
+                                        "description": "Pickup location longitude",
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 35.4955
+                                    },
+                                    "delivery_latitude": {
+                                        "description": "Delivery location latitude",
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 33.8938
+                                    },
+                                    "delivery_longitude": {
+                                        "description": "Delivery location longitude",
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 35.5018
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Delivery fee calculated successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Delivery fee calculated successfully"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "distance_km": {
+                                                    "type": "number",
+                                                    "example": 2.45
+                                                },
+                                                "duration_minutes": {
+                                                    "type": "integer",
+                                                    "example": 12
+                                                },
+                                                "delivery_fee": {
+                                                    "type": "number",
+                                                    "example": 2.5
+                                                },
+                                                "driver_earning": {
+                                                    "type": "number",
+                                                    "example": 1.88
+                                                },
+                                                "platform_fee": {
+                                                    "type": "number",
+                                                    "example": 0.62
+                                                },
+                                                "estimated_delivery_time": {
+                                                    "type": "integer",
+                                                    "example": 45
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid coordinates or calculation error"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/maps/validate-coordinates": {
+            "post": {
+                "tags": [
+                    "Maps"
+                ],
+                "summary": "Validate coordinates",
+                "description": "Validate if coordinates are valid and accessible",
+                "operationId": "4fddede117c4f2e4d369c3f79bc9ae14",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "latitude",
+                                    "longitude"
+                                ],
+                                "properties": {
+                                    "latitude": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 33.8886
+                                    },
+                                    "longitude": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 35.4955
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Coordinates validated successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Coordinates are valid"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "is_valid": {
+                                                    "type": "boolean",
+                                                    "example": true
+                                                },
+                                                "latitude": {
+                                                    "type": "number",
+                                                    "example": 33.8886
+                                                },
+                                                "longitude": {
+                                                    "type": "number",
+                                                    "example": 35.4955
+                                                },
+                                                "location_info": {
+                                                    "type": "string",
+                                                    "example": "Beirut, Lebanon"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid coordinates"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/maps/service-areas": {
+            "get": {
+                "tags": [
+                    "Maps"
+                ],
+                "summary": "Get service areas",
+                "description": "Get list of supported service areas for delivery",
+                "operationId": "a6cad8b390d721161614a32073884817",
+                "responses": {
+                    "200": {
+                        "description": "Service areas retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "supported_areas": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "name": {
+                                                                "type": "string",
+                                                                "example": "Beirut"
+                                                            },
+                                                            "country": {
+                                                                "type": "string",
+                                                                "example": "Lebanon"
+                                                            },
+                                                            "center_latitude": {
+                                                                "type": "number",
+                                                                "example": 33.8886
+                                                            },
+                                                            "center_longitude": {
+                                                                "type": "number",
+                                                                "example": 35.4955
+                                                            },
+                                                            "radius_km": {
+                                                                "type": "integer",
+                                                                "example": 25
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "min_delivery_fee": {
+                                                    "type": "number",
+                                                    "example": 1
+                                                },
+                                                "max_delivery_distance_km": {
+                                                    "type": "integer",
+                                                    "example": 50
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/items": {
@@ -1854,23 +3860,277 @@
                 ]
             }
         },
+        "/api/notifications": {
+            "get": {
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Get user notifications",
+                "description": "Get paginated list of user's notifications",
+                "operationId": "6d56a555955089a73fdf3f7229e8ead8",
+                "parameters": [
+                    {
+                        "name": "unread_only",
+                        "in": "query",
+                        "description": "Only return unread notifications",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "type",
+                        "in": "query",
+                        "description": "Filter by notification type",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Notifications retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/notifications/unread-count": {
+            "get": {
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Get unread notifications count",
+                "description": "Get count of unread notifications for the current user",
+                "operationId": "f3e05b69d516049be949f02a45e0eedd",
+                "responses": {
+                    "200": {
+                        "description": "Unread count retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "unread_count": {
+                                                    "type": "integer",
+                                                    "example": 5
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/notifications/{id}/read": {
+            "post": {
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Mark notification as read",
+                "description": "Mark a specific notification as read",
+                "operationId": "89d94089af487b4bafdd6b9db9c55478",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Notification ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Notification marked as read",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Notification marked as read"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Notification not found"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/notifications/mark-all-read": {
+            "post": {
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Mark all notifications as read",
+                "description": "Mark all unread notifications as read for the current user",
+                "operationId": "2c05d18629d588cb3c35be1ae1577214",
+                "responses": {
+                    "200": {
+                        "description": "All notifications marked as read",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "All notifications marked as read"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "marked_count": {
+                                                    "type": "integer",
+                                                    "example": 8
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/notifications/recent": {
+            "get": {
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Get recent notifications",
+                "description": "Get the most recent 10 notifications for quick display",
+                "operationId": "d7a09fd3c2c50afe40e6233365244c6a",
+                "responses": {
+                    "200": {
+                        "description": "Recent notifications retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/orders": {
             "get": {
                 "tags": [
                     "Orders"
                 ],
                 "summary": "Get buyer's orders",
-                "description": "Get all orders where the authenticated user is the buyer",
+                "description": "Get orders placed by the authenticated user (as buyer)",
                 "operationId": "955bb77a45ae173a485fadb8befed93f",
                 "parameters": [
                     {
                         "name": "per_page",
                         "in": "query",
-                        "description": "Orders per page (1-50)",
+                        "description": "Number of orders per page (1-50)",
                         "required": false,
                         "schema": {
                             "type": "integer",
-                            "default": 15
+                            "default": 15,
+                            "maximum": 50,
+                            "minimum": 1
                         }
                     }
                 ],
@@ -1890,31 +4150,12 @@
                                             "example": "Orders retrieved successfully"
                                         },
                                         "data": {
-                                            "properties": {
-                                                "orders": {
-                                                    "type": "array",
-                                                    "items": {
-                                                        "type": "object"
-                                                    }
-                                                }
-                                            },
-                                            "type": "object"
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object"
+                                            }
                                         },
                                         "meta": {
-                                            "properties": {
-                                                "current_page": {
-                                                    "type": "integer"
-                                                },
-                                                "total": {
-                                                    "type": "integer"
-                                                },
-                                                "per_page": {
-                                                    "type": "integer"
-                                                },
-                                                "last_page": {
-                                                    "type": "integer"
-                                                }
-                                            },
                                             "type": "object"
                                         }
                                     },
@@ -2065,23 +4306,25 @@
                     "Orders"
                 ],
                 "summary": "Get seller's orders",
-                "description": "Get all orders where the authenticated user is the seller",
+                "description": "Get orders for items sold by the authenticated user (as seller)",
                 "operationId": "ba923b280be0e20e948ee69b5c210bbc",
                 "parameters": [
                     {
                         "name": "per_page",
                         "in": "query",
-                        "description": "Orders per page (1-50)",
+                        "description": "Number of orders per page (1-50)",
                         "required": false,
                         "schema": {
                             "type": "integer",
-                            "default": 15
+                            "default": 15,
+                            "maximum": 50,
+                            "minimum": 1
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Sales retrieved successfully",
+                        "description": "Seller orders retrieved successfully",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -2092,10 +4335,13 @@
                                         },
                                         "message": {
                                             "type": "string",
-                                            "example": "Sales retrieved successfully"
+                                            "example": "Seller orders retrieved successfully"
                                         },
                                         "data": {
-                                            "type": "object"
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object"
+                                            }
                                         },
                                         "meta": {
                                             "type": "object"
@@ -2123,7 +4369,7 @@
                     "Orders"
                 ],
                 "summary": "Get order details",
-                "description": "Get detailed information about a specific order (buyer or seller only)",
+                "description": "Get detailed information about a specific order",
                 "operationId": "88d27387b1e409e075c18609d4a0c300",
                 "parameters": [
                     {
@@ -2139,7 +4385,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Order retrieved successfully",
+                        "description": "Order details retrieved successfully",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -2150,7 +4396,7 @@
                                         },
                                         "message": {
                                             "type": "string",
-                                            "example": "Order retrieved successfully"
+                                            "example": "Order details retrieved successfully"
                                         },
                                         "data": {
                                             "type": "object"
@@ -2163,6 +4409,9 @@
                     },
                     "401": {
                         "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Cannot access this order"
                     },
                     "404": {
                         "description": "Order not found"
@@ -2260,6 +4509,67 @@
                     },
                     "403": {
                         "description": "Only buyer can cancel order"
+                    },
+                    "404": {
+                        "description": "Order not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/orders/{id}/confirm": {
+            "post": {
+                "tags": [
+                    "Orders"
+                ],
+                "summary": "Confirm order (seller)",
+                "description": "Seller confirms they have the item ready for pickup",
+                "operationId": "e3c3e618a10171a54eb590ce79925ea9",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Order ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Order confirmed successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Order confirmed successfully"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Cannot confirm order at this stage"
+                    },
+                    "403": {
+                        "description": "Only seller can confirm order"
                     },
                     "404": {
                         "description": "Order not found"
@@ -2488,16 +4798,44 @@
             "description": "Admin Management"
         },
         {
+            "name": "Admin - Drivers",
+            "description": "Admin - Drivers"
+        },
+        {
             "name": "Addresses",
             "description": "Addresses"
+        },
+        {
+            "name": "Charity",
+            "description": "Charity"
+        },
+        {
+            "name": "Deliveries",
+            "description": "Deliveries"
+        },
+        {
+            "name": "Driver Applications",
+            "description": "Driver Applications"
+        },
+        {
+            "name": "Driver Dashboard",
+            "description": "Driver Dashboard"
         },
         {
             "name": "Favorites",
             "description": "Favorites"
         },
         {
+            "name": "Maps",
+            "description": "Maps"
+        },
+        {
             "name": "Items",
             "description": "Items"
+        },
+        {
+            "name": "Notifications",
+            "description": "Notifications"
         },
         {
             "name": "Orders",

@@ -3,30 +3,37 @@
 namespace App\Services;
 
 use App\Models\Order;
-use App\Models\Delivery;
 use App\Models\Item;
 use App\Models\Address;
 use App\Models\User;
-use App\Models\Notification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Pagination\LengthAwarePaginator;
 
 class OrderService
 {
+    protected DeliveryService $deliveryService;
+    protected NotificationService $notificationService;
+
+    public function __construct(DeliveryService $deliveryService, NotificationService $notificationService)
+    {
+        $this->deliveryService = $deliveryService;
+        $this->notificationService = $notificationService;
+    }
+
     /**
      * Create a new order
      *
-     * @param array $data
      * @param User $buyer
+     * @param array $data
      * @return Order
+     * @throws \Exception
      */
-    public function createOrder(array $data, User $buyer): Order
+    public function createOrder(User $buyer, array $data): Order
     {
         DB::beginTransaction();
 
         try {
-            // Get item and validate
             // Get item and validate
             $item = Item::with('seller')->find($data['item_id']);
 
@@ -61,7 +68,7 @@ class OrderService
 
             // Calculate amounts
             $itemPrice = $item->is_donation ? 0 : $item->price;
-            $deliveryFee = $data['delivery_fee'];
+            $deliveryFee = $data['delivery_fee'] ?? 0;
             $totalAmount = $itemPrice + $deliveryFee;
 
             // Create order
@@ -79,16 +86,23 @@ class OrderService
                 'payment_status' => 'pending',
             ]);
 
-            // Create delivery record
-            $this->createDeliveryRecord($order, $item, $address);
+            // Create delivery record using DeliveryService
+            $delivery = $this->deliveryService->createDeliveryFromOrder($order);
 
-            // Mark item as pending/sold
+            // Mark item as sold for donations, pending for sales
             $item->update([
-                'status' => 'pending',
+                'status' => $item->is_donation ? 'sold' : 'pending',
+                'sold_at' => $item->is_donation ? now() : null,
             ]);
 
-            // Create notifications
-            $this->createOrderNotifications($order, $item);
+            // Send notifications using NotificationService
+            $this->notificationService->orderPlaced($order);
+
+            if ($item->is_donation) {
+                $this->notificationService->donationAccepted($item, $order);
+            } else {
+                $this->notificationService->itemSold($item, $order);
+            }
 
             DB::commit();
 
@@ -102,6 +116,7 @@ class OrderService
                 'seller_id' => $item->seller_id,
                 'item_id' => $item->id,
                 'total_amount' => $totalAmount,
+                'is_donation' => $item->is_donation,
             ]);
 
             return $order;
@@ -111,57 +126,9 @@ class OrderService
                 'buyer_id' => $buyer->id,
                 'item_id' => $data['item_id'] ?? null,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
             ]);
             throw $e;
         }
-    }
-
-    /**
-     * Get buyer's orders
-     *
-     * @param int $buyerId
-     * @param int $perPage
-     * @return LengthAwarePaginator
-     */
-    public function getBuyerOrders(int $buyerId, int $perPage = 15): LengthAwarePaginator
-    {
-        return Order::with(['seller:id,name,email,city', 'item.images', 'deliveryAddress', 'delivery'])
-            ->where('buyer_id', $buyerId)
-            ->orderBy('created_at', 'desc')
-            ->paginate($perPage);
-    }
-
-    /**
-     * Get seller's orders
-     *
-     * @param int $sellerId
-     * @param int $perPage
-     * @return LengthAwarePaginator
-     */
-    public function getSellerOrders(int $sellerId, int $perPage = 15): LengthAwarePaginator
-    {
-        return Order::with(['buyer:id,name,email,city', 'item.images', 'deliveryAddress', 'delivery'])
-            ->where('seller_id', $sellerId)
-            ->orderBy('created_at', 'desc')
-            ->paginate($perPage);
-    }
-
-    /**
-     * Get single order by ID
-     *
-     * @param int $orderId
-     * @param int $userId
-     * @return Order|null
-     */
-    public function getOrderById(int $orderId, int $userId): ?Order
-    {
-        return Order::with(['buyer', 'seller', 'item.images', 'deliveryAddress', 'delivery.driver'])
-            ->where(function($query) use ($userId) {
-                $query->where('buyer_id', $userId)
-                    ->orWhere('seller_id', $userId);
-            })
-            ->find($orderId);
     }
 
     /**
@@ -170,6 +137,7 @@ class OrderService
      * @param Order $order
      * @param string $reason
      * @return Order
+     * @throws \Exception
      */
     public function cancelOrder(Order $order, string $reason): Order
     {
@@ -191,17 +159,35 @@ class OrderService
             // Make item available again
             $order->item()->update([
                 'status' => 'available',
+                'sold_at' => null,
             ]);
 
-            // Update delivery if exists
+            // Cancel delivery if exists (only works before pickup)
             if ($order->delivery) {
-                $order->delivery->update([
-                    'status' => 'failed',
-                ]);
+                try {
+                    $this->deliveryService->cancelDelivery($order->delivery, $reason);
+                } catch (\Exception $e) {
+                    // If delivery can't be cancelled (e.g., after pickup), log but don't fail order cancellation
+                    Log::warning('Could not cancel delivery during order cancellation', [
+                        'order_id' => $order->id,
+                        'delivery_id' => $order->delivery->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
             }
 
-            // Notify seller
-            $this->createCancellationNotification($order);
+            // Send cancellation notification
+            $this->notificationService->createNotification(
+                $order->seller_id,
+                'order_cancelled',
+                'Order Cancelled',
+                "Order #{$order->order_number} has been cancelled. Reason: {$reason}",
+                [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'reason' => $reason,
+                ]
+            );
 
             DB::commit();
 
@@ -220,6 +206,97 @@ class OrderService
             ]);
             throw $e;
         }
+    }
+
+    /**
+     * Confirm order (seller confirms they have the item ready)
+     *
+     * @param Order $order
+     * @return Order
+     * @throws \Exception
+     */
+    public function confirmOrder(Order $order): Order
+    {
+        DB::beginTransaction();
+
+        try {
+            if ($order->status !== 'pending') {
+                throw new \Exception('Order cannot be confirmed at this stage');
+            }
+
+            $order->update([
+                'status' => 'confirmed',
+                'confirmed_at' => now(),
+            ]);
+
+            // Try to auto-assign a driver
+            if ($order->delivery && $order->delivery->status === 'pending') {
+                try {
+                    $this->deliveryService->assignDriver($order->delivery);
+                } catch (\Exception $e) {
+                    // Log but don't fail the order confirmation
+                    Log::warning('Failed to auto-assign driver', [
+                        'order_id' => $order->id,
+                        'delivery_id' => $order->delivery->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            DB::commit();
+
+            return $order->fresh();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw $e;
+        }
+    }
+
+    /**
+     * Get buyer's orders
+     *
+     * @param int $buyerId
+     * @param int $perPage
+     * @return LengthAwarePaginator
+     */
+    public function getBuyerOrders(int $buyerId, int $perPage = 15): LengthAwarePaginator
+    {
+        return Order::with(['seller:id,name,email,city', 'item.images', 'deliveryAddress', 'delivery.driver'])
+            ->where('buyer_id', $buyerId)
+            ->orderBy('created_at', 'desc')
+            ->paginate($perPage);
+    }
+
+    /**
+     * Get seller's orders
+     *
+     * @param int $sellerId
+     * @param int $perPage
+     * @return LengthAwarePaginator
+     */
+    public function getSellerOrders(int $sellerId, int $perPage = 15): LengthAwarePaginator
+    {
+        return Order::with(['buyer:id,name,email,city', 'item.images', 'deliveryAddress', 'delivery.driver'])
+            ->where('seller_id', $sellerId)
+            ->orderBy('created_at', 'desc')
+            ->paginate($perPage);
+    }
+
+    /**
+     * Get single order by ID
+     *
+     * @param int $orderId
+     * @param int $userId
+     * @return Order|null
+     */
+    public function getOrderById(int $orderId, int $userId): ?Order
+    {
+        return Order::with(['buyer', 'seller', 'item.images', 'deliveryAddress', 'delivery.driver'])
+            ->where(function($query) use ($userId) {
+                $query->where('buyer_id', $userId)
+                    ->orWhere('seller_id', $userId);
+            })
+            ->find($orderId);
     }
 
     /**
@@ -250,123 +327,42 @@ class OrderService
     }
 
     /**
-     * Create delivery record for order
+     * Get order statistics for admin
      *
-     * @param Order $order
-     * @param Item $item
-     * @param Address $deliveryAddress
-     * @return Delivery
+     * @return array
      */
-    protected function createDeliveryRecord(Order $order, Item $item, Address $deliveryAddress): Delivery
+    public function getOrderStatistics(): array
     {
-        // Get seller's address (from user's city/lat/lng)
-        $seller = $item->seller;
+        $totalOrders = Order::count();
+        $pendingOrders = Order::where('status', 'pending')->count();
+        $confirmedOrders = Order::where('status', 'confirmed')->count();
+        $completedOrders = Order::where('status', 'completed')->count();
+        $cancelledOrders = Order::where('status', 'cancelled')->count();
 
-        return Delivery::create([
-            'order_id' => $order->id,
-            'driver_id' => null, // Will be assigned later
-            'pickup_address' => $seller->address ?? "{$seller->city}, {$seller->country}",
-            'pickup_latitude' => $seller->latitude,
-            'pickup_longitude' => $seller->longitude,
-            'delivery_address' => $deliveryAddress->address_line1 . ', ' . $deliveryAddress->city,
-            'delivery_latitude' => $deliveryAddress->latitude,
-            'delivery_longitude' => $deliveryAddress->longitude,
-            'distance_km' => $this->calculateDistance(
-                $seller->latitude,
-                $seller->longitude,
-                $deliveryAddress->latitude,
-                $deliveryAddress->longitude
-            ),
-            'delivery_fee' => $order->delivery_fee,
-            'driver_earning' => $order->delivery_fee * 0.75, // 75% to driver
-            'platform_fee' => $order->delivery_fee * 0.25, // 25% to platform
-            'status' => 'pending',
-        ]);
-    }
+        $totalRevenue = Order::where('status', 'completed')->sum('total_amount');
+        $totalDeliveryFees = Order::where('status', 'completed')->sum('delivery_fee');
 
-    /**
-     * Calculate distance between two coordinates (Haversine formula)
-     *
-     * @param float $lat1
-     * @param float $lng1
-     * @param float $lat2
-     * @param float $lng2
-     * @return float Distance in kilometers
-     */
-    protected function calculateDistance($lat1, $lng1, $lat2, $lng2): float
-    {
-        if (is_null($lat1) || is_null($lng1) || is_null($lat2) || is_null($lng2)) {
-            return 0;
-        }
+        $thisMonthOrders = Order::whereMonth('created_at', now()->month)
+            ->whereYear('created_at', now()->year)
+            ->count();
 
-        $earthRadius = 6371; // km
+        $thisMonthRevenue = Order::whereMonth('created_at', now()->month)
+            ->whereYear('created_at', now()->year)
+            ->where('status', 'completed')
+            ->sum('total_amount');
 
-        $dLat = deg2rad($lat2 - $lat1);
-        $dLng = deg2rad($lng2 - $lng1);
-
-        $a = sin($dLat/2) * sin($dLat/2) +
-            cos(deg2rad($lat1)) * cos(deg2rad($lat2)) *
-            sin($dLng/2) * sin($dLng/2);
-
-        $c = 2 * atan2(sqrt($a), sqrt(1-$a));
-
-        $distance = $earthRadius * $c;
-
-        return round($distance, 2);
-    }
-
-    /**
-     * Create notifications for order
-     *
-     * @param Order $order
-     * @param Item $item
-     */
-    protected function createOrderNotifications(Order $order, Item $item): void
-    {
-        // Notify seller
-        Notification::create([
-            'user_id' => $order->seller_id,
-            'type' => 'order_placed',
-            'title' => 'New Order Received',
-            'message' => "You have a new order for: {$item->title}",
-            'data' => [
-                'order_id' => $order->id,
-                'order_number' => $order->order_number,
-                'item_id' => $item->id,
-            ],
-        ]);
-
-        // Notify buyer (confirmation)
-        Notification::create([
-            'user_id' => $order->buyer_id,
-            'type' => 'order_placed',
-            'title' => 'Order Placed Successfully',
-            'message' => "Your order for {$item->title} has been placed successfully",
-            'data' => [
-                'order_id' => $order->id,
-                'order_number' => $order->order_number,
-                'item_id' => $item->id,
-            ],
-        ]);
-    }
-
-    /**
-     * Create cancellation notification
-     *
-     * @param Order $order
-     */
-    protected function createCancellationNotification(Order $order): void
-    {
-        // Notify seller
-        Notification::create([
-            'user_id' => $order->seller_id,
-            'type' => 'general',
-            'title' => 'Order Cancelled',
-            'message' => "Order {$order->order_number} has been cancelled",
-            'data' => [
-                'order_id' => $order->id,
-                'order_number' => $order->order_number,
-            ],
-        ]);
+        return [
+            'total_orders' => $totalOrders,
+            'pending_orders' => $pendingOrders,
+            'confirmed_orders' => $confirmedOrders,
+            'completed_orders' => $completedOrders,
+            'cancelled_orders' => $cancelledOrders,
+            'total_revenue' => (float) $totalRevenue,
+            'total_delivery_fees' => (float) $totalDeliveryFees,
+            'this_month_orders' => $thisMonthOrders,
+            'this_month_revenue' => (float) $thisMonthRevenue,
+            'completion_rate' => $totalOrders > 0 ? round(($completedOrders / $totalOrders) * 100, 2) : 0,
+            'cancellation_rate' => $totalOrders > 0 ? round(($cancelledOrders / $totalOrders) * 100, 2) : 0,
+        ];
     }
 }

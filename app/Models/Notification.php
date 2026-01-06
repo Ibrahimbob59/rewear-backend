@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Notification extends Model
 {
@@ -15,7 +16,6 @@ class Notification extends Model
         'title',
         'message',
         'data',
-        'action_url',
         'is_read',
         'read_at',
     ];
@@ -28,27 +28,17 @@ class Notification extends Model
         'updated_at' => 'datetime',
     ];
 
-    public $timestamps = true;
-
     // ==================== RELATIONSHIPS ====================
 
     /**
-     * Get the user who owns this notification
+     * Get the user this notification belongs to
      */
-    public function user()
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
     // ==================== QUERY SCOPES ====================
-
-    /**
-     * Scope for user's notifications
-     */
-    public function scopeForUser($query, $userId)
-    {
-        return $query->where('user_id', $userId);
-    }
 
     /**
      * Scope for unread notifications
@@ -67,19 +57,27 @@ class Notification extends Model
     }
 
     /**
-     * Scope by type
+     * Scope for specific notification type
      */
-    public function scopeByType($query, $type)
+    public function scopeOfType($query, string $type)
     {
         return $query->where('type', $type);
     }
 
-    // ==================== METHODS ====================
+    /**
+     * Scope for recent notifications
+     */
+    public function scopeRecent($query, int $days = 30)
+    {
+        return $query->where('created_at', '>=', now()->subDays($days));
+    }
+
+    // ==================== HELPER METHODS ====================
 
     /**
      * Mark notification as read
      */
-    public function markAsRead()
+    public function markAsRead(): void
     {
         if (!$this->is_read) {
             $this->update([
@@ -90,13 +88,53 @@ class Notification extends Model
     }
 
     /**
-     * Mark notification as unread
+     * Check if notification is recent (within 24 hours)
      */
-    public function markAsUnread()
+    public function isRecent(): bool
     {
-        $this->update([
-            'is_read' => false,
-            'read_at' => null,
-        ]);
+        return $this->created_at->gt(now()->subHours(24));
+    }
+
+    /**
+     * Get formatted time ago
+     */
+    public function getTimeAgoAttribute(): string
+    {
+        return $this->created_at->diffForHumans();
+    }
+
+    /**
+     * Get notification icon based on type
+     */
+    public function getIconAttribute(): string
+    {
+        return match($this->type) {
+            'order_placed' => 'shopping-bag',
+            'order_confirmed' => 'check-circle',
+            'order_delivered' => 'truck',
+            'item_sold' => 'dollar-sign',
+            'donation_accepted' => 'heart',
+            'delivery_assigned' => 'user-check',
+            'driver_approved' => 'shield-check',
+            'driver_rejected' => 'shield-x',
+            'general' => 'bell',
+            default => 'info',
+        };
+    }
+
+    /**
+     * Get notification color based on type
+     */
+    public function getColorAttribute(): string
+    {
+        return match($this->type) {
+            'order_placed', 'order_confirmed' => 'green',
+            'order_delivered', 'item_sold' => 'blue',
+            'donation_accepted', 'donation_offered' => 'purple',
+            'delivery_assigned', 'driver_approved' => 'emerald',
+            'driver_rejected' => 'red',
+            'general' => 'gray',
+            default => 'blue',
+        };
     }
 }

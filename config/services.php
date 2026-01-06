@@ -15,11 +15,7 @@ return [
     */
 
     'postmark' => [
-        'key' => env('POSTMARK_API_KEY'),
-    ],
-
-    'resend' => [
-        'key' => env('RESEND_API_KEY'),
+        'token' => env('POSTMARK_TOKEN'),
     ],
 
     'ses' => [
@@ -28,17 +24,32 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    'resend' => [
+        'key' => env('RESEND_KEY'),
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
         ],
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Google Services
+    |--------------------------------------------------------------------------
+    */
+
+    'google_maps' => [
+        'api_key' => env('GOOGLE_MAPS_API_KEY'),
+    ],
+
     'firebase' => [
         'storage_bucket' => env('FIREBASE_STORAGE_BUCKET'),
-    ],
-    'google' => [
-        'maps_api_key' => env('GOOGLE_MAPS_API_KEY'),
+        'project_id' => env('FIREBASE_PROJECT_ID'),
+        'private_key' => env('FIREBASE_PRIVATE_KEY'),
+        'client_email' => env('FIREBASE_CLIENT_EMAIL'),
     ],
 
 ];
