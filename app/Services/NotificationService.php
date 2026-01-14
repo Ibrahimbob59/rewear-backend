@@ -272,6 +272,61 @@ class NotificationService
         );
     }
 
+    /**
+     * Notify when delivery is cancelled
+     *
+     * @param \App\Models\Delivery $delivery
+     * @param string $reason
+     */
+    public function deliveryCancelled(\App\Models\Delivery $delivery, string $reason): void
+    {
+        // Notify buyer
+        $this->createNotification(
+            $delivery->order->buyer_id,
+            'delivery_cancelled',
+            'Delivery Cancelled',
+            "Your delivery for order #{$delivery->order->order_number} has been cancelled. Reason: {$reason}. A new delivery will be assigned.",
+            [
+                'delivery_id' => $delivery->id,
+                'order_id' => $delivery->order_id,
+                'order_number' => $delivery->order->order_number,
+                'cancellation_reason' => $reason,
+            ]
+        );
+
+        // Notify seller
+        $this->createNotification(
+            $delivery->order->seller_id,
+            'delivery_cancelled',
+            'Delivery Cancelled',
+            "The delivery for your order #{$delivery->order->order_number} has been cancelled. Reason: {$reason}. We'll find a new driver.",
+            [
+                'delivery_id' => $delivery->id,
+                'order_id' => $delivery->order_id,
+                'order_number' => $delivery->order->order_number,
+                'cancellation_reason' => $reason,
+            ]
+        );
+
+        // Notify admin (optional - for monitoring)
+        $adminUsers = \App\Models\User::role('admin')->get();
+        foreach ($adminUsers as $admin) {
+            $this->createNotification(
+                $admin->id,
+                'delivery_cancelled',
+                'Delivery Cancelled',
+                "Delivery #{$delivery->id} for order #{$delivery->order->order_number} was cancelled. Reason: {$reason}",
+                [
+                    'delivery_id' => $delivery->id,
+                    'order_id' => $delivery->order_id,
+                    'order_number' => $delivery->order->order_number,
+                    'cancellation_reason' => $reason,
+                    'driver_id' => $delivery->driver_id,
+                ]
+            );
+        }
+    }
+
     // ==================== DRIVER NOTIFICATIONS ====================
 
     /**

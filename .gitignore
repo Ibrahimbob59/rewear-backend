@@ -22,3 +22,11 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Windows reserved device names
+nul
+NUL
+
+
+tmpclaude-*-cwd
+

@@ -163,6 +163,119 @@
                 ]
             }
         },
+        "/api/admin/create-user": {
+            "post": {
+                "tags": [
+                    "Admin Management"
+                ],
+                "summary": "Create a new user (Admin only)",
+                "description": "Create a new user (Admin only)",
+                "operationId": "b46702aa4b5d0d2fa62f36ce1b68b6e1",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "name",
+                                    "email",
+                                    "password",
+                                    "phone",
+                                    "user_type"
+                                ],
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "John Doe"
+                                    },
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "john@example.com"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "minLength": 8,
+                                        "example": "SecurePassword123!"
+                                    },
+                                    "phone": {
+                                        "type": "string",
+                                        "example": "+96170123456"
+                                    },
+                                    "city": {
+                                        "type": "string",
+                                        "example": "Beirut"
+                                    },
+                                    "user_type": {
+                                        "type": "string",
+                                        "enum": [
+                                            "user",
+                                            "driver"
+                                        ],
+                                        "example": "user"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "User created successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "User created successfully"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer",
+                                                    "example": 123
+                                                },
+                                                "name": {
+                                                    "type": "string",
+                                                    "example": "John Doe"
+                                                },
+                                                "email": {
+                                                    "type": "string",
+                                                    "example": "john@example.com"
+                                                },
+                                                "user_type": {
+                                                    "type": "string",
+                                                    "example": "user"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - Admin access required"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/admin/stats": {
             "get": {
                 "tags": [
@@ -549,6 +662,439 @@
                                                 }
                                             },
                                             "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/admin/notifications": {
+            "get": {
+                "tags": [
+                    "Admin Management"
+                ],
+                "summary": "Get admin notifications",
+                "description": "Get admin notifications",
+                "operationId": "1570f51a230083bd6bc6bdd86e827c13",
+                "parameters": [
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": "Filter by status: all, read, unread",
+                        "schema": {
+                            "type": "string",
+                            "default": "all",
+                            "enum": [
+                                "all",
+                                "read",
+                                "unread"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "Items per page",
+                        "schema": {
+                            "type": "integer",
+                            "default": 20,
+                            "maximum": 100
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "Page number",
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Notifications retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "type": {
+                                                        "type": "string",
+                                                        "example": "user"
+                                                    },
+                                                    "title": {
+                                                        "type": "string",
+                                                        "example": "New User Registration"
+                                                    },
+                                                    "message": {
+                                                        "type": "string",
+                                                        "example": "John Doe has just registered as a customer"
+                                                    },
+                                                    "read": {
+                                                        "type": "boolean",
+                                                        "example": false
+                                                    },
+                                                    "created_at": {
+                                                        "type": "string",
+                                                        "example": "2025-01-15T10:30:00.000000Z"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        },
+                                        "meta": {
+                                            "properties": {
+                                                "total": {
+                                                    "type": "integer",
+                                                    "example": 45
+                                                },
+                                                "per_page": {
+                                                    "type": "integer",
+                                                    "example": 20
+                                                },
+                                                "current_page": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden - Admin access required"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/admin/notifications/unread-count": {
+            "get": {
+                "tags": [
+                    "Admin Management"
+                ],
+                "summary": "Get unread admin notifications count",
+                "description": "Get unread count",
+                "operationId": "5aba6f7d5fc9dc1548b6bb2e8f31672f",
+                "responses": {
+                    "200": {
+                        "description": "Unread count retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "count": {
+                                                    "type": "integer",
+                                                    "example": 5
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/admin/notifications/{id}/read": {
+            "post": {
+                "tags": [
+                    "Admin Management"
+                ],
+                "summary": "Mark admin notification as read",
+                "description": "Mark notification as read",
+                "operationId": "8b6f4bb1c2f8fd37dca26d6bb0255d9d",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Notification ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Notification marked as read",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Notification marked as read"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Notification not found"
+                    },
+                    "403": {
+                        "description": "Forbidden - Notification belongs to another admin"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/admin/notifications/read-all": {
+            "post": {
+                "tags": [
+                    "Admin Management"
+                ],
+                "summary": "Mark all admin notifications as read",
+                "description": "Mark all notifications as read",
+                "operationId": "445c062cf841c7fe398086c7464de070",
+                "responses": {
+                    "200": {
+                        "description": "All notifications marked as read",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "All notifications marked as read"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "marked_count": {
+                                                    "type": "integer",
+                                                    "example": 5
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/admin/notifications/{id}": {
+            "delete": {
+                "tags": [
+                    "Admin Management"
+                ],
+                "summary": "Delete admin notification",
+                "description": "Delete notification",
+                "operationId": "341e5f92466a91f075ee2a6b9a730b47",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Notification ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Notification deleted successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Notification deleted successfully"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Notification not found"
+                    },
+                    "403": {
+                        "description": "Forbidden - Notification belongs to another admin"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/admin/notifications/clear-all": {
+            "delete": {
+                "tags": [
+                    "Admin Management"
+                ],
+                "summary": "Clear all admin notifications",
+                "description": "Clear all notifications",
+                "operationId": "595cf3b37b96fb808837b3c38142fda0",
+                "responses": {
+                    "200": {
+                        "description": "All notifications cleared",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "All notifications cleared successfully"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "deleted_count": {
+                                                    "type": "integer",
+                                                    "example": 10
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/admin/notifications/test": {
+            "post": {
+                "tags": [
+                    "Admin Management"
+                ],
+                "summary": "Create a test admin notification",
+                "description": "Create a test admin notification",
+                "operationId": "b18d3b3318f4103d8f1efd85d11f8d07",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "type": {
+                                        "type": "string",
+                                        "enum": [
+                                            "user",
+                                            "order",
+                                            "item",
+                                            "driver",
+                                            "system"
+                                        ],
+                                        "example": "system"
+                                    },
+                                    "title": {
+                                        "type": "string",
+                                        "example": "Test Admin Notification"
+                                    },
+                                    "message": {
+                                        "type": "string",
+                                        "example": "This is a test notification"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Test notification created successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Test notification created successfully"
                                         }
                                     },
                                     "type": "object"
@@ -4103,6 +4649,74 @@
                     },
                     "401": {
                         "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/notifications/test": {
+            "post": {
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Create a test user notification",
+                "description": "Create a test user notification",
+                "operationId": "93de87b2a01b943f0fbb0374b127840d",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "type": {
+                                        "type": "string",
+                                        "enum": [
+                                            "user",
+                                            "order",
+                                            "item",
+                                            "driver",
+                                            "system"
+                                        ],
+                                        "example": "system"
+                                    },
+                                    "title": {
+                                        "type": "string",
+                                        "example": "Test User Notification"
+                                    },
+                                    "message": {
+                                        "type": "string",
+                                        "example": "This is a test notification"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Test notification created successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Test notification created successfully"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
                     }
                 },
                 "security": [

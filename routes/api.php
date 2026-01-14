@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\CharityController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\GoogleMapsController;
 use App\Http\Controllers\Admin\AdminDriverController;
+use App\Http\Controllers\Admin\AdminNotificationController;
 
 
 /*
@@ -135,6 +136,7 @@ Route::middleware('auth:api')->group(function () {
         Route::post('/{id}/assign-driver', [DeliveryController::class, 'assignDriver']); // Admin only
         Route::post('/{id}/pickup', [DeliveryController::class, 'markAsPickedUp']);
         Route::post('/{id}/deliver', [DeliveryController::class, 'markAsDelivered']);
+        Route::post('/{id}/cancel', [DeliveryController::class, 'cancelDelivery']);
         Route::post('/{id}/fail', [DeliveryController::class, 'markAsFailed']);
     });
 
@@ -169,7 +171,7 @@ Route::middleware('auth:api')->group(function () {
         Route::post('/mark-all-read', [NotificationController::class, 'markAllAsRead']);
         Route::delete('/{id}', [NotificationController::class, 'destroy']);
         Route::delete('/clear-all', [NotificationController::class, 'clearAll']);
-        Route::post('/test', [NotificationController::class, 'sendTestNotification']); // Dev only
+        Route::post('/test', [NotificationController::class, 'storeTest']); // Dev only
     });
 
     // ==================== MAPS & DELIVERY CALCULATION ROUTES ====================
@@ -197,6 +199,9 @@ Route::middleware('auth:api')->group(function () {
         Route::prefix('charity')->group(function () {
             Route::post('/create', [AdminController::class, 'createCharity']);
         });
+
+        // User Creation
+        Route::post('/create-user', [AdminController::class, 'createUser']);
 
         Route::get('/charities', [AdminController::class, 'getCharities']);
 
@@ -257,6 +262,18 @@ Route::middleware('auth:api')->group(function () {
                     ],
                 ]);
             });
+        });
+
+        // ==================== ADMIN NOTIFICATIONS ====================
+
+        Route::prefix('notifications')->group(function () {
+            Route::get('/', [AdminNotificationController::class, 'index']);
+            Route::get('/unread-count', [AdminNotificationController::class, 'unreadCount']);
+            Route::post('/read-all', [AdminNotificationController::class, 'markAllAsRead']);
+            Route::delete('/clear-all', [AdminNotificationController::class, 'clearAll']);
+            Route::post('/{id}/read', [AdminNotificationController::class, 'markAsRead']);
+            Route::delete('/{id}', [AdminNotificationController::class, 'destroy']);
+            Route::post('/test', [AdminNotificationController::class, 'storeTest']);
         });
     });
 });

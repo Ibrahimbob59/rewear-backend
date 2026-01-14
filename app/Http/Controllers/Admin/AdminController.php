@@ -228,6 +228,175 @@ class AdminController extends Controller
     }
 
     /**
+     * Create a new user (Admin only)
+     *
+     * @OA\Post(
+     *     path="/api/admin/create-user",
+     *     summary="Create a new user (Admin only)",
+     *     tags={"Admin Management"},
+     *     security={{"bearerAuth": {}}},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"name", "email", "password", "phone", "user_type"},
+     *             @OA\Property(property="name", type="string", example="John Doe"),
+     *             @OA\Property(property="email", type="string", format="email", example="john@example.com"),
+     *             @OA\Property(property="password", type="string", minLength=8, example="SecurePassword123!"),
+     *             @OA\Property(property="phone", type="string", example="+96170123456"),
+     *             @OA\Property(property="city", type="string", example="Beirut"),
+     *             @OA\Property(property="user_type", type="string", enum={"user", "driver"}, example="user")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=201,
+     *         description="User created successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="User created successfully"),
+     *             @OA\Property(property="data", type="object",
+     *                 @OA\Property(property="id", type="integer", example=123),
+     *                 @OA\Property(property="name", type="string", example="John Doe"),
+     *                 @OA\Property(property="email", type="string", example="john@example.com"),
+     *                 @OA\Property(property="user_type", type="string", example="user")
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(response=403, description="Forbidden - Admin access required"),
+     *     @OA\Response(response=422, description="Validation error")
+     * )
+     */
+    public function createUser(Request $request): JsonResponse
+    {
+        try {
+            /** @var User $admin */
+            $admin = auth()->user();
+
+            Log::info('Admin user creation attempt', [
+                'admin_id' => $admin->id,
+                'admin_email' => $admin->email,
+                'user_name' => $request->name,
+                'user_email' => $request->email,
+                'user_type' => $request->user_type,
+                'ip' => $request->ip(),
+            ]);
+
+            // Validate request
+            $validated = $request->validate([
+                'name' => 'required|string|max:255',
+                'email' => 'required|email|unique:users,email|max:255',
+                'password' => 'required|string|min:8|max:255',
+                'phone' => 'required|string|unique:users,phone|max:20',
+                'city' => 'nullable|string|max:100',
+                'user_type' => 'required|in:user,driver',
+            ]);
+
+            // Determine if creating a driver
+            $isDriver = $validated['user_type'] === 'driver';
+
+            // Create user
+            $userData = [
+                'name' => $validated['name'],
+                'email' => $validated['email'],
+                'password' => Hash::make($validated['password']),
+                'phone' => $validated['phone'],
+                'user_type' => 'user', // Base type is always 'user'
+                'city' => $validated['city'] ?? null,
+                'email_verified_at' => now(),
+                'is_active' => true,
+            ];
+
+            // If driver, set driver-specific fields
+            if ($isDriver) {
+                $userData['is_driver'] = true;
+                $userData['driver_verified'] = true;
+                $userData['driver_verified_at'] = now();
+            }
+
+            $user = User::create($userData);
+
+            // Assign role based on user_type
+            if ($isDriver) {
+                $user->assignRole('driver');
+            } else {
+                $user->assignRole('user');
+            }
+
+            Log::info('User created successfully by admin', [
+                'admin_id' => $admin->id,
+                'user_id' => $user->id,
+                'user_name' => $user->name,
+                'user_email' => $user->email,
+                'user_type' => $validated['user_type'],
+                'is_driver' => $isDriver,
+            ]);
+
+            // Send credentials email
+            try {
+                Mail::send('emails.user_credentials', [
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'password' => $validated['password'],
+                    'accountType' => $isDriver ? 'Driver' : 'User',
+                    'isDriver' => $isDriver,
+                ], function ($message) use ($user) {
+                    $message->to($user->email)
+                        ->subject('ReWear - Your Account Credentials');
+                });
+
+                Log::info('User credentials email sent', [
+                    'user_id' => $user->id,
+                    'user_email' => $user->email,
+                ]);
+            } catch (\Exception $e) {
+                Log::error('Failed to send user credentials email', [
+                    'user_id' => $user->id,
+                    'user_email' => $user->email,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => $isDriver
+                    ? 'Driver account created successfully. Credentials sent to email.'
+                    : 'User created successfully. Credentials sent to email.',
+                'data' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'phone' => $user->phone,
+                    'user_type' => $validated['user_type'],
+                    'is_driver' => $isDriver,
+                    'driver_verified' => $isDriver,
+                    'created_at' => $user->created_at,
+                ],
+            ], 201);
+
+        } catch (ValidationException $e) {
+            Log::warning('User creation validation failed', [
+                'admin_id' => auth()->id(),
+                'errors' => $e->errors(),
+                'ip' => $request->ip(),
+            ]);
+            throw $e;
+
+        } catch (\Exception $e) {
+            Log::error('User creation failed', [
+                'admin_id' => auth()->id(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'ip' => $request->ip(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to create user. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : 'An unexpected error occurred while creating the user account. Please verify all information is correct and try again.',
+            ], 500);
+        }
+    }
+
+    /**
      * Get platform statistics (Public)
      *
      * @OA\Get(

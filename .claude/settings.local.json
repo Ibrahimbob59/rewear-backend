@@ -6,7 +6,8 @@
       "Bash(cat:*)",
       "Bash(curl:*)",
       "Bash(test:*)",
-      "Bash(php test_auth.php:*)"
+      "Bash(php test_auth.php:*)",
+      "Bash(php:*)"
     ],
     "deny": [],
     "ask": []

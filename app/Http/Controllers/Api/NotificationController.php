@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\NotificationResource;
+use App\Models\Notification;
 use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 
 class NotificationController extends Controller
 {
@@ -294,6 +296,75 @@ class NotificationController extends Controller
                 'success' => false,
                 'message' => 'Failed to retrieve recent notifications',
                 'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Create a test user notification
+     *
+     * @OA\Post(
+     *     path="/api/notifications/test",
+     *     tags={"Notifications"},
+     *     summary="Create a test user notification",
+     *     security={{"bearerAuth": {}}},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             @OA\Property(property="type", type="string", enum={"user", "order", "item", "driver", "system"}, example="system"),
+     *             @OA\Property(property="title", type="string", example="Test User Notification"),
+     *             @OA\Property(property="message", type="string", example="This is a test notification")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Test notification created successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="Test notification created successfully")
+     *         )
+     *     )
+     * )
+     */
+    public function storeTest(Request $request): JsonResponse
+    {
+        try {
+            $validated = $request->validate([
+                'type' => 'sometimes|in:user,order,item,driver,system',
+                'title' => 'sometimes|string|max:255',
+                'message' => 'required|string',
+            ]);
+
+            Notification::create([
+                'user_id' => auth()->id(),
+                'type' => $validated['type'] ?? 'system',
+                'title' => $validated['title'] ?? 'Test User Notification',
+                'message' => $validated['message'],
+                'is_read' => false,
+            ]);
+
+            Log::info('Test user notification created', [
+                'user_id' => auth()->id(),
+                'type' => $validated['type'] ?? 'system',
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Test notification created successfully',
+            ], 200);
+
+        } catch (ValidationException $e) {
+            throw $e;
+
+        } catch (\Exception $e) {
+            Log::error('Failed to create test notification', [
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to create test notification',
             ], 500);
         }
     }
