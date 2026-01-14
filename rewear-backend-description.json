@@ -1,0 +1,1548 @@
+{
+  "project": {
+    "name": "ReWear Backend",
+    "type": "RESTful API",
+    "description": "Complete sustainable fashion marketplace backend API connecting sellers, buyers, delivery drivers, and charities to facilitate affordable clothing access while reducing textile waste",
+    "version": "1.0.0",
+    "status": "COMPLETED",
+    "development_timeline": "4 weeks",
+    "academic_project": true,
+    "repository": "Rewear_backend"
+  },
+  "tech_stack": {
+    "framework": "Laravel 11",
+    "language": "PHP 8.2",
+    "database": "PostgreSQL",
+    "authentication": "JWT (JSON Web Tokens) + Refresh Tokens",
+    "authorization": "Spatie Laravel Permission (RBAC)",
+    "storage": "Firebase Storage",
+    "maps_integration": "Google Maps API",
+    "documentation": "Swagger/OpenAPI (L5-Swagger)",
+    "image_processing": "Intervention Image",
+    "http_client": "Guzzle HTTP",
+    "testing": "PHPUnit"
+  },
+  "architecture": {
+    "pattern": "MVC (Model-View-Controller)",
+    "api_structure": "RESTful",
+    "authentication_flow": "Stateless JWT with Refresh Token rotation",
+    "database_design": "Relational with foreign key constraints",
+    "service_layer": "Business logic separated into service classes",
+    "middleware": "Route protection with role-based access control"
+  },
+  "database": {
+    "engine": "PostgreSQL",
+    "migration_files": 9,
+    "total_tables": 24,
+    "tables": {
+      "authentication": {
+        "users": {
+          "description": "Central user table storing all user types (buyers, sellers, charities, drivers)",
+          "primary_key": "id",
+          "columns": {
+            "id": "BIGINT (Primary Key, Auto Increment)",
+            "name": "VARCHAR(255) - User's full name",
+            "email": "VARCHAR(255) (Unique) - Login email",
+            "password": "VARCHAR(255) (Hashed, Bcrypt) - User password",
+            "phone": "VARCHAR(20) (Unique, Nullable) - Contact phone number",
+            "user_type": "ENUM('user', 'charity') - Account type classification",
+            "profile_picture": "VARCHAR(500) (Nullable) - Firebase Storage URL",
+            "bio": "TEXT (Nullable) - User biography/description",
+            "is_driver": "BOOLEAN (Default: false) - Driver application status",
+            "driver_verified": "BOOLEAN (Default: false) - Driver verification status",
+            "driver_verified_at": "TIMESTAMP (Nullable) - When driver was verified",
+            "organization_name": "VARCHAR(255) (Nullable) - Charity organization name",
+            "organization_description": "TEXT (Nullable) - Charity description",
+            "registration_number": "VARCHAR(100) (Nullable) - Charity registration",
+            "tax_id": "VARCHAR(100) (Nullable) - Charity tax ID",
+            "address": "VARCHAR(500) (Nullable) - User address",
+            "city": "VARCHAR(100) (Nullable) - City name",
+            "country": "VARCHAR(100) (Nullable) - Country name",
+            "latitude": "DECIMAL(10,8) (Nullable) - GPS latitude coordinate",
+            "longitude": "DECIMAL(11,8) (Nullable) - GPS longitude coordinate",
+            "email_verified_at": "TIMESTAMP (Nullable) - Email verification timestamp",
+            "is_active": "BOOLEAN (Default: true) - Account active status",
+            "last_login_at": "TIMESTAMP (Nullable) - Last successful login",
+            "login_attempts": "INTEGER (Default: 0) - Failed login attempts count",
+            "locked_until": "TIMESTAMP (Nullable) - Account lock expiration",
+            "remember_token": "VARCHAR(100) (Nullable) - Laravel remember me token",
+            "created_at": "TIMESTAMP - Record creation time",
+            "updated_at": "TIMESTAMP - Last update time"
+          },
+          "indexes": [
+            "email",
+            "user_type",
+            "is_driver, driver_verified (Composite)",
+            "is_active"
+          ],
+          "relationships": {
+            "has_many": [
+              "refresh_tokens",
+              "email_verifications",
+              "items (as seller)",
+              "purchased_orders (as buyer)",
+              "sold_orders (as seller)",
+              "addresses",
+              "favorites",
+              "deliveries (as driver)",
+              "notifications",
+              "driver_applications"
+            ]
+          }
+        },
+        "email_verifications": {
+          "description": "Stores OTP codes for email verification during registration and password reset",
+          "primary_key": "id",
+          "columns": {
+            "id": "BIGINT (Primary Key)",
+            "user_id": "BIGINT (Foreign Key -> users.id, Nullable, ON DELETE SET NULL)",
+            "email": "VARCHAR(255) - Email address to verify",
+            "code": "VARCHAR(6) - 6-digit OTP code",
+            "purpose": "ENUM('registration', 'login', 'password_reset') (Default: registration) - OTP purpose",
+            "attempts": "INTEGER (Default: 0) - Verification attempts",
+            "verified": "BOOLEAN (Default: false) - Verification status",
+            "expires_at": "TIMESTAMP - OTP expiration (5 minutes)",
+            "verified_at": "TIMESTAMP (Nullable) - When verified",
+            "ip_address": "VARCHAR(45) (Nullable) - Client IP",
+            "user_agent": "TEXT (Nullable) - Client browser info",
+            "created_at": "TIMESTAMP",
+            "updated_at": "TIMESTAMP"
+          },
+          "indexes": ["email", "code", "expires_at", "email, verified (Composite)"]
+        },
+        "refresh_tokens": {
+          "description": "JWT refresh token storage for secure token rotation",
+          "primary_key": "id",
+          "columns": {
+            "id": "BIGINT (Primary Key)",
+            "user_id": "BIGINT (Foreign Key -> users.id, ON DELETE CASCADE)",
+            "token": "VARCHAR(500) (Unique) - Refresh token hash",
+            "device_name": "VARCHAR(255) (Nullable) - Device identifier",
+            "ip_address": "VARCHAR(45) (Nullable) - Client IP",
+            "user_agent": "TEXT (Nullable) - Client browser info",
+            "expires_at": "TIMESTAMP - Token expiration (30 days)",
+            "revoked_at": "TIMESTAMP (Nullable) - Token revocation time",
+            "last_used_at": "TIMESTAMP (Nullable) - Last usage timestamp",
+            "created_at": "TIMESTAMP",
+            "updated_at": "TIMESTAMP"
+          },
+          "indexes": ["user_id", "token", "expires_at", "user_id, revoked_at (Composite)"]
+        },
+        "password_reset_tokens": {
+          "description": "Laravel default password reset tokens",
+          "columns": {
+            "email": "VARCHAR(255) (Primary Key)",
+            "token": "VARCHAR(255) - Reset token",
+            "created_at": "TIMESTAMP (Nullable)"
+          }
+        }
+      },
+      "authorization": {
+        "roles": {
+          "description": "Spatie Permission - Role definitions for RBAC",
+          "columns": {
+            "id": "BIGINT (Primary Key)",
+            "name": "VARCHAR(255) (Unique) - Role name (admin, charity, driver)",
+            "guard_name": "VARCHAR(255) - Guard name (web, api)",
+            "created_at": "TIMESTAMP",
+            "updated_at": "TIMESTAMP"
+          }
+        },
+        "permissions": {
+          "description": "Spatie Permission - Permission definitions",
+          "columns": {
+            "id": "BIGINT (Primary Key)",
+            "name": "VARCHAR(255) (Unique) - Permission name",
+            "guard_name": "VARCHAR(255) - Guard name",
+            "created_at": "TIMESTAMP",
+            "updated_at": "TIMESTAMP"
+          }
+        },
+        "model_has_roles": {
+          "description": "Many-to-many relationship between users and roles",
+          "columns": {
+            "role_id": "BIGINT (Foreign Key -> roles.id, ON DELETE CASCADE)",
+            "model_type": "VARCHAR(255) - Model class name",
+            "model_id": "BIGINT - Model ID (User ID)"
+          }
+        },
+        "model_has_permissions": {
+          "description": "Many-to-many relationship between users and permissions",
+          "columns": {
+            "permission_id": "BIGINT (Foreign Key -> permissions.id, ON DELETE CASCADE)",
+            "model_type": "VARCHAR(255) - Model class name",
+            "model_id": "BIGINT - Model ID (User ID)"
+          }
+        },
+        "role_has_permissions": {
+          "description": "Many-to-many relationship between roles and permissions",
+          "columns": {
+            "permission_id": "BIGINT (Foreign Key -> permissions.id, ON DELETE CASCADE)",
+            "role_id": "BIGINT (Foreign Key -> roles.id, ON DELETE CASCADE)"
+          }
+        }
+      },
+      "marketplace": {
+        "items": {
+          "description": "Clothing items for sale or donation",
+          "primary_key": "id",
+          "columns": {
+            "id": "BIGINT (Primary Key)",
+            "seller_id": "BIGINT (Foreign Key -> users.id, ON DELETE CASCADE)",
+            "title": "VARCHAR(255) - Item title",
+            "description": "TEXT - Detailed item description",
+            "category": "ENUM('tops', 'bottoms', 'dresses', 'outerwear', 'shoes', 'accessories', 'other') - Clothing category",
+            "size": "ENUM('XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL', 'One Size') (Nullable) - Item size",
+            "condition": "ENUM('new', 'like_new', 'good', 'fair') (Default: good) - Item condition",
+            "gender": "ENUM('male', 'female', 'unisex') (Default: unisex) - Target gender",
+            "brand": "VARCHAR(100) (Nullable) - Brand name",
+            "color": "VARCHAR(50) (Nullable) - Primary color",
+            "price": "DECIMAL(10,2) (Nullable) - Price in USD (null for donations)",
+            "is_donation": "BOOLEAN (Default: false) - Donation flag",
+            "donation_quantity": "INTEGER - Available quantity for donations",
+            "donation_quantity_available": "INTEGER (Default: donation_quantity) - Remaining quantity",
+            "status": "ENUM('available', 'pending', 'sold', 'donated', 'cancelled') (Default: available)",
+            "views_count": "INTEGER (Default: 0) - View counter",
+            "sold_at": "TIMESTAMP (Nullable) - When item was sold/donated",
+            "created_at": "TIMESTAMP",
+            "updated_at": "TIMESTAMP",
+            "deleted_at": "TIMESTAMP (Nullable) - Soft delete timestamp"
+          },
+          "indexes": [
+            "seller_id",
+            "category",
+            "status",
+            "is_donation",
+            "status, is_donation (Composite)",
+            "created_at"
+          ],
+          "relationships": {
+            "belongs_to": ["seller (user)"],
+            "has_many": ["images", "orders", "favorites"]
+          }
+        },
+        "item_images": {
+          "description": "Multiple images per item",
+          "columns": {
+            "id": "BIGINT (Primary Key)",
+            "item_id": "BIGINT (Foreign Key -> items.id, ON DELETE CASCADE)",
+            "image_url": "VARCHAR(500) - Firebase Storage URL",
+            "display_order": "INTEGER (Default: 0) - Display sequence",
+            "is_primary": "BOOLEAN (Default: false) - Primary image flag",
+            "created_at": "TIMESTAMP",
+            "updated_at": "TIMESTAMP"
+          },
+          "indexes": ["item_id", "item_id, display_order (Composite)"]
+        },
+        "addresses": {
+          "description": "User delivery addresses",
+          "columns": {
+            "id": "BIGINT (Primary Key)",
+            "user_id": "BIGINT (Foreign Key -> users.id, ON DELETE CASCADE)",
+            "label": "VARCHAR(50) (Nullable) - Address label (Home, Work)",
+            "full_name": "VARCHAR(255) (Nullable) - Recipient name",
+            "phone": "VARCHAR(20) (Nullable) - Recipient phone",
+            "address_line1": "VARCHAR(255) - Primary address",
+            "address_line2": "VARCHAR(255) (Nullable) - Secondary address",
+            "city": "VARCHAR(100) - City name",
+            "state": "VARCHAR(100) (Nullable) - State/Province",
+            "postal_code": "VARCHAR(20) (Nullable) - ZIP/Postal code",
+            "country": "VARCHAR(100) - Country name",
+            "latitude": "DECIMAL(10,8) (Nullable) - GPS coordinate",
+            "longitude": "DECIMAL(11,8) (Nullable) - GPS coordinate",
+            "is_default": "BOOLEAN (Default: false) - Default address flag",
+            "created_at": "TIMESTAMP",
+            "updated_at": "TIMESTAMP"
+          },
+          "indexes": ["user_id", "user_id, is_default (Composite)"]
+        },
+        "orders": {
+          "description": "Purchase/donation transactions",
+          "primary_key": "id",
+          "columns": {
+            "id": "BIGINT (Primary Key)",
+            "order_number": "VARCHAR(50) (Unique) - Human-readable order ID",
+            "buyer_id": "BIGINT (Foreign Key -> users.id, ON DELETE CASCADE)",
+            "seller_id": "BIGINT (Foreign Key -> users.id, ON DELETE CASCADE)",
+            "item_id": "BIGINT (Foreign Key -> items.id, ON DELETE CASCADE)",
+            "delivery_address_id": "BIGINT (Foreign Key -> addresses.id, ON DELETE CASCADE)",
+            "item_price": "DECIMAL(10,2) (Default: 0) - Item price (0 for donations)",
+            "delivery_fee": "DECIMAL(10,2) - Delivery cost calculated by distance",
+            "total_amount": "DECIMAL(10,2) - Total to pay (item_price + delivery_fee)",
+            "status": "ENUM('pending', 'confirmed', 'in_delivery', 'delivered', 'completed', 'cancelled') (Default: pending)",
+            "payment_method": "ENUM('cod') (Default: cod) - Cash on Delivery",
+            "payment_status": "ENUM('pending', 'paid', 'refunded') (Default: pending)",
+            "confirmed_at": "TIMESTAMP (Nullable) - Seller confirmation",
+            "delivered_at": "TIMESTAMP (Nullable) - Delivery completion",
+            "completed_at": "TIMESTAMP (Nullable) - Order completion",
+            "cancelled_at": "TIMESTAMP (Nullable) - Cancellation timestamp",
+            "cancellation_reason": "TEXT (Nullable) - Why cancelled",
+            "distributed_at": "TIMESTAMP (Nullable) - Charity distribution date",
+            "distribution_notes": "TEXT (Nullable) - Charity distribution notes",
+            "people_helped": "INTEGER (Nullable) - People helped by donation",
+            "created_at": "TIMESTAMP",
+            "updated_at": "TIMESTAMP",
+            "deleted_at": "TIMESTAMP (Nullable) - Soft delete"
+          },
+          "indexes": ["order_number", "buyer_id", "seller_id", "status", "created_at"],
+          "relationships": {
+            "belongs_to": ["buyer", "seller", "item", "delivery_address"],
+            "has_one": ["delivery"]
+          }
+        },
+        "deliveries": {
+          "description": "Delivery tracking and driver assignment",
+          "primary_key": "id",
+          "columns": {
+            "id": "BIGINT (Primary Key)",
+            "order_id": "BIGINT (Foreign Key -> orders.id, ON DELETE CASCADE)",
+            "driver_id": "BIGINT (Foreign Key -> users.id, Nullable, ON DELETE SET NULL)",
+            "pickup_address": "VARCHAR(500) (Nullable) - Pickup location text",
+            "pickup_latitude": "DECIMAL(10,8) (Nullable) - Pickup GPS coordinate",
+            "pickup_longitude": "DECIMAL(11,8) (Nullable) - Pickup GPS coordinate",
+            "delivery_address": "VARCHAR(500) (Nullable) - Delivery location text",
+            "delivery_latitude": "DECIMAL(10,8) (Nullable) - Delivery GPS coordinate",
+            "delivery_longitude": "DECIMAL(11,8) (Nullable) - Delivery GPS coordinate",
+            "distance_km": "DECIMAL(8,2) (Nullable) - Distance in kilometers",
+            "delivery_fee": "DECIMAL(10,2) - Total delivery fee",
+            "driver_earning": "DECIMAL(10,2) - Driver's share (75%)",
+            "platform_fee": "DECIMAL(10,2) - Platform's share (25%)",
+            "status": "ENUM('pending', 'assigned', 'picked_up', 'in_transit', 'delivered', 'failed') (Default: pending)",
+            "assigned_at": "TIMESTAMP (Nullable) - Driver assignment",
+            "picked_up_at": "TIMESTAMP (Nullable) - Pickup confirmation",
+            "delivered_at": "TIMESTAMP (Nullable) - Delivery confirmation",
+            "delivery_notes": "TEXT (Nullable) - Delivery instructions",
+            "failure_reason": "TEXT (Nullable) - Failure explanation",
+            "created_at": "TIMESTAMP",
+            "updated_at": "TIMESTAMP"
+          },
+          "indexes": ["order_id", "driver_id", "status", "driver_id, status (Composite)"],
+          "relationships": {
+            "belongs_to": ["order", "driver (user)"]
+          }
+        },
+        "driver_applications": {
+          "description": "Driver verification applications",
+          "columns": {
+            "id": "BIGINT (Primary Key)",
+            "user_id": "BIGINT (Foreign Key -> users.id, ON DELETE CASCADE)",
+            "full_name": "VARCHAR(255) - Applicant's full name",
+            "phone": "VARCHAR(20) - Contact phone",
+            "email": "VARCHAR(255) - Contact email",
+            "address": "TEXT - Residential address",
+            "city": "VARCHAR(100) - City of residence",
+            "id_document_url": "VARCHAR(500) (Nullable) - ID document (Firebase)",
+            "driving_license_url": "VARCHAR(500) (Nullable) - License (Firebase)",
+            "vehicle_registration_url": "VARCHAR(500) (Nullable) - Vehicle registration (Firebase)",
+            "vehicle_type": "VARCHAR(50) (Nullable) - car, motorcycle, bicycle",
+            "status": "ENUM('pending', 'under_review', 'approved', 'rejected') (Default: pending)",
+            "rejection_reason": "TEXT (Nullable) - Why rejected",
+            "reviewed_by": "BIGINT (Foreign Key -> users.id, Nullable, ON DELETE SET NULL) - Admin reviewer",
+            "reviewed_at": "TIMESTAMP (Nullable) - Review timestamp",
+            "created_at": "TIMESTAMP",
+            "updated_at": "TIMESTAMP"
+          },
+          "indexes": ["user_id", "status", "reviewed_by"]
+        },
+        "favorites": {
+          "description": "User's saved/favorited items",
+          "columns": {
+            "id": "BIGINT (Primary Key)",
+            "user_id": "BIGINT (Foreign Key -> users.id, ON DELETE CASCADE)",
+            "item_id": "BIGINT (Foreign Key -> items.id, ON DELETE CASCADE)",
+            "created_at": "TIMESTAMP",
+            "updated_at": "TIMESTAMP"
+          },
+          "unique_constraint": ["user_id, item_id - User can favorite item only once"],
+          "indexes": ["user_id", "item_id"]
+        }
+      },
+      "notifications": {
+        "notifications": {
+          "description": "User notifications and alerts",
+          "columns": {
+            "id": "BIGINT (Primary Key)",
+            "user_id": "BIGINT (Foreign Key -> users.id, ON DELETE CASCADE)",
+            "type": "ENUM('order_placed', 'order_confirmed', 'order_delivered', 'item_sold', 'donation_accepted', 'delivery_assigned', 'driver_approved', 'driver_rejected', 'donation_confirmed', 'delivery_completed', 'general') - Notification type",
+            "title": "VARCHAR(255) - Notification title",
+            "message": "TEXT - Notification message",
+            "data": "JSON (Nullable) - Additional metadata",
+            "is_read": "BOOLEAN (Default: false) - Read status",
+            "read_at": "TIMESTAMP (Nullable) - When marked as read",
+            "created_at": "TIMESTAMP",
+            "updated_at": "TIMESTAMP"
+          },
+          "indexes": ["user_id", "user_id, is_read (Composite)", "created_at"]
+        }
+      },
+      "system": {
+        "admin_logs": {
+          "description": "Admin action audit trail",
+          "columns": {
+            "id": "BIGINT (Primary Key)",
+            "admin_id": "BIGINT (Foreign Key -> users.id, ON DELETE CASCADE)",
+            "action": "VARCHAR(255) - Action performed (created_charity, approved_driver)",
+            "model_type": "VARCHAR(255) (Nullable) - Affected model class",
+            "model_id": "BIGINT (Nullable) - Affected model ID",
+            "changes": "JSON (Nullable) - Old and new values",
+            "ip_address": "VARCHAR(45) (Nullable) - Admin IP",
+            "user_agent": "TEXT (Nullable) - Admin browser info",
+            "created_at": "TIMESTAMP",
+            "updated_at": "TIMESTAMP"
+          },
+          "indexes": ["admin_id", "model_type, model_id (Composite)", "created_at"]
+        },
+        "impact_stats": {
+          "description": "Daily platform statistics",
+          "columns": {
+            "id": "BIGINT (Primary Key)",
+            "total_items_listed": "INTEGER (Default: 0)",
+            "total_items_sold": "INTEGER (Default: 0)",
+            "total_items_donated": "INTEGER (Default: 0)",
+            "total_users": "INTEGER (Default: 0)",
+            "total_charities": "INTEGER (Default: 0)",
+            "total_drivers": "INTEGER (Default: 0)",
+            "total_revenue": "DECIMAL(12,2) (Default: 0)",
+            "total_driver_earnings": "DECIMAL(12,2) (Default: 0)",
+            "co2_saved_kg": "DECIMAL(12,2) (Default: 0) - Estimated environmental impact",
+            "people_helped": "INTEGER (Default: 0)",
+            "date": "DATE (Unique) - Stat date",
+            "created_at": "TIMESTAMP",
+            "updated_at": "TIMESTAMP"
+          },
+          "indexes": ["date"]
+        },
+        "cache": {
+          "description": "Laravel application cache",
+          "columns": {
+            "key": "VARCHAR(255) (Primary Key)",
+            "value": "TEXT - Cached data",
+            "expiration": "INTEGER - Expiration timestamp"
+          }
+        },
+        "cache_locks": {
+          "description": "Laravel cache locks for atomic operations",
+          "columns": {
+            "key": "VARCHAR(255) (Primary Key)",
+            "owner": "VARCHAR(255) - Lock owner",
+            "expiration": "INTEGER - Lock expiration"
+          }
+        },
+        "failed_jobs": {
+          "description": "Failed queue jobs for debugging",
+          "columns": {
+            "id": "BIGINT (Primary Key)",
+            "uuid": "VARCHAR(255) (Unique) - Job UUID",
+            "connection": "TEXT - Queue connection",
+            "queue": "TEXT - Queue name",
+            "payload": "LONGTEXT - Job data",
+            "exception": "LONGTEXT - Error trace",
+            "failed_at": "TIMESTAMP (Default: CURRENT_TIMESTAMP)"
+          }
+        },
+        "jobs": {
+          "description": "Queue jobs pending execution",
+          "columns": {
+            "id": "BIGINT (Primary Key)",
+            "queue": "VARCHAR(255) - Queue name",
+            "payload": "LONGTEXT - Job data",
+            "attempts": "TINYINT UNSIGNED - Retry attempts",
+            "reserved_at": "INTEGER (Nullable) - Reservation time",
+            "available_at": "INTEGER - Available time",
+            "created_at": "INTEGER - Creation time"
+          },
+          "indexes": ["queue"]
+        },
+        "job_batches": {
+          "description": "Batch job tracking",
+          "columns": {
+            "id": "VARCHAR(255) (Primary Key) - Batch ID",
+            "name": "VARCHAR(255) - Batch name",
+            "total_jobs": "INTEGER - Total jobs in batch",
+            "pending_jobs": "INTEGER - Jobs remaining",
+            "failed_jobs": "INTEGER - Failed jobs count",
+            "failed_job_ids": "LONGTEXT - IDs of failed jobs",
+            "options": "MEDIUMTEXT (Nullable) - Batch options",
+            "cancelled_at": "INTEGER (Nullable) - Cancellation time",
+            "created_at": "INTEGER - Creation time",
+            "finished_at": "INTEGER (Nullable) - Completion time"
+          }
+        },
+        "sessions": {
+          "description": "Database session storage",
+          "columns": {
+            "id": "VARCHAR(255) (Primary Key) - Session ID",
+            "user_id": "BIGINT (Nullable, Foreign Key) - Session owner",
+            "ip_address": "VARCHAR(45) (Nullable) - Client IP",
+            "user_agent": "TEXT (Nullable) - Client browser",
+            "payload": "LONGTEXT - Session data",
+            "last_activity": "INTEGER - Last activity timestamp"
+          },
+          "indexes": ["user_id", "last_activity"]
+        }
+      }
+    }
+  },
+  "models": {
+    "User": {
+      "file": "app/Models/User.php",
+      "extends": "Authenticatable",
+      "traits": ["HasApiTokens", "HasFactory", "Notifiable", "HasRoles"],
+      "relationships": {
+        "has_many": [
+          "refreshTokens",
+          "emailVerifications",
+          "items",
+          "purchasedOrders",
+          "soldOrders",
+          "addresses",
+          "favorites",
+          "deliveries",
+          "notifications",
+          "driverApplication"
+        ]
+      },
+      "helper_methods": [
+        "hasVerifiedEmail()",
+        "isLocked()",
+        "incrementLoginAttempts()",
+        "resetLoginAttempts()",
+        "isVerifiedDriver()",
+        "getDefaultAddress()",
+        "canApplyAsDriver()",
+        "getDriverStats()",
+        "getCharityStats()"
+      ]
+    },
+    "Item": {
+      "file": "app/Models/Item.php",
+      "traits": ["HasFactory", "SoftDeletes"],
+      "relationships": {
+        "belongs_to": ["seller (User)"],
+        "has_many": ["images", "orders", "favorites"]
+      },
+      "scopes": ["available", "donations", "forSale", "category", "forSeller"],
+      "methods": [
+        "isAvailable()",
+        "markAsPending()",
+        "markAsSold()",
+        "markAsDonated()",
+        "markAsAvailable()",
+        "getPrimaryImage()",
+        "isOwnedBy()",
+        "isFavoritedBy()",
+        "hasDonationAvailable()",
+        "decrementDonationQuantity()"
+      ]
+    },
+    "Order": {
+      "file": "app/Models/Order.php",
+      "traits": ["HasFactory", "SoftDeletes"],
+      "relationships": {
+        "belongs_to": ["buyer", "seller", "item", "deliveryAddress"],
+        "has_one": ["delivery"]
+      },
+      "scopes": ["forBuyer", "forSeller", "status", "pending", "completed"],
+      "methods": ["belongsToUser()", "isBuyer()", "isSeller()", "canBeCancelled()", "isDonation()"]
+    },
+    "Delivery": {
+      "file": "app/Models/Delivery.php",
+      "relationships": {
+        "belongs_to": ["order", "driver"]
+      },
+      "scopes": ["pending", "forDriver", "assigned", "cancelled", "active"],
+      "methods": [
+        "assignDriver()",
+        "markAsPickedUp()",
+        "markAsDelivered()",
+        "cancelDelivery()",
+        "canBeCancelled()",
+        "isBeforePickup()",
+        "isAfterPickup()"
+      ]
+    },
+    "Notification": {
+      "file": "app/Models/Notification.php",
+      "relationships": { "belongs_to": ["user"] },
+      "scopes": ["unread", "read", "ofType", "recent"],
+      "methods": ["markAsRead()", "isRecent()", "getIcon()", "getColor()"]
+    },
+    "DriverApplication": {
+      "file": "app/Models/DriverApplication.php",
+      "relationships": { "belongs_to": ["user", "reviewer (admin)"] }
+    },
+    "Favorite": {
+      "file": "app/Models/Favorite.php",
+      "relationships": { "belongs_to": ["user", "item"] }
+    },
+    "Address": {
+      "file": "app/Models/Address.php",
+      "relationships": { "belongs_to": ["user"] }
+    },
+    "ItemImage": {
+      "file": "app/Models/ItemImage.php",
+      "relationships": { "belongs_to": ["item"] }
+    }
+  },
+  "services": {
+    "AuthService": {
+      "file": "app/Services/AuthService.php",
+      "description": "Handles user authentication, registration, and login logic",
+      "methods": [
+        "registerUser(array $data)",
+        "loginUser(array $credentials)",
+        "logoutUser(RefreshToken $token)",
+        "logoutAllUsers(User $user)"
+      ]
+    },
+    "EmailVerificationService": {
+      "file": "app/Services/EmailVerificationService.php",
+      "description": "Manages OTP generation and verification",
+      "methods": [
+        "generateOTP(string $email, string $purpose)",
+        "verifyOTP(string $email, string $code, string $purpose)",
+        "isOTPExpired(EmailVerification $verification)"
+      ]
+    },
+    "TokenService": {
+      "file": "app/Services/TokenService.php",
+      "description": "JWT and refresh token management",
+      "methods": [
+        "generateTokens(User $user)",
+        "refreshToken(string $refreshToken)",
+        "revokeToken(RefreshToken $token)",
+        "validateAccessToken(string $token)"
+      ]
+    },
+    "ItemService": {
+      "file": "app/Services/ItemService.php",
+      "description": "Item CRUD operations and business logic",
+      "methods": [
+        "createItem(array $data, User $seller)",
+        "updateItem(Item $item, array $data)",
+        "deleteItem(Item $item)",
+        "toggleItemStatus(Item $item)",
+        "incrementViewCount(Item $item)"
+      ]
+    },
+    "OrderService": {
+      "file": "app/Services/OrderService.php",
+      "description": "Order processing and management",
+      "methods": [
+        "createOrder(array $data, User $buyer)",
+        "confirmOrder(Order $order, User $seller)",
+        "cancelOrder(Order $order, string $reason)",
+        "getSellerOrders(User $seller)",
+        "getBuyerOrders(User $buyer)"
+      ]
+    },
+    "DeliveryService": {
+      "file": "app/Services/DeliveryService.php",
+      "description": "Delivery logistics and driver assignment",
+      "methods": [
+        "createDelivery(Order $order)",
+        "assignDriver(Delivery $delivery, User $driver)",
+        "markAsPickedUp(Delivery $delivery)",
+        "markAsDelivered(Delivery $delivery)",
+        "cancelDelivery(Delivery $delivery, string $reason)"
+      ]
+    },
+    "DonationService": {
+      "file": "app/Services/DonationService.php",
+      "description": "Charity donation management",
+      "methods": [
+        "acceptDonation(Item $item, User $charity)",
+        "markDistributed(Order $order, int $peopleHelped)",
+        "getPlatformDonationStats()",
+        "getCharityDonations(User $charity)",
+        "getRecommendedDonations(User $charity)"
+      ]
+    },
+    "NotificationService": {
+      "file": "app/Services/NotificationService.php",
+      "description": "User notification management",
+      "methods": [
+        "createNotification(User $user, string $type, string $title, string $message, array $data)",
+        "markAsRead(Notification $notification)",
+        "markAllAsRead(User $user)",
+        "deleteNotification(Notification $notification)",
+        "clearAll(User $user)"
+      ]
+    },
+    "GoogleMapsService": {
+      "file": "app/Services/GoogleMapsService.php",
+      "description": "Google Maps API integration for distance calculation and routing",
+      "methods": [
+        "calculateDistance(float $fromLat, float $fromLng, float $toLat, float $toLng)",
+        "calculateDeliveryFee(float $distance)",
+        "validateCoordinates(float $lat, float $lng)",
+        "getFormattedAddress(float $lat, float $lng)"
+      ]
+    },
+    "FirebaseStorageService": {
+      "file": "app/Services/FirebaseStorageService.php",
+      "description": "Firebase Storage for image uploads",
+      "methods": [
+        "uploadImage(UploadedFile $file, string $path)",
+        "deleteImage(string $imageUrl)",
+        "getImageUrl(string $path)"
+      ]
+    },
+    "DriverApplicationService": {
+      "file": "app/Services/DriverApplicationService.php",
+      "description": "Driver application processing",
+      "methods": [
+        "submitApplication(array $data, User $user)",
+        "approveApplication(DriverApplication $application, User $admin)",
+        "rejectApplication(DriverApplication $application, string $reason, User $admin)",
+        "setUnderReview(DriverApplication $application)"
+      ]
+    },
+    "AdminService": {
+      "file": "app/Services/AdminService.php",
+      "description": "Admin operations and statistics",
+      "methods": [
+        "createCharity(array $data)",
+        "createUser(array $data)",
+        "getAllUsers(array $filters)",
+        "deleteUser(User $user)",
+        "getPlatformStatistics()"
+      ]
+    },
+    "AddressService": {
+      "file": "app/Services/AddressService.php",
+      "description": "User address management",
+      "methods": [
+        "createAddress(array $data, User $user)",
+        "updateAddress(Address $address, array $data)",
+        "deleteAddress(Address $address)",
+        "setDefaultAddress(Address $address, User $user)"
+      ]
+    },
+    "LogService": {
+      "file": "app/Services/LogService.php",
+      "description": "Admin action logging",
+      "methods": [
+        "logAdminAction(User $admin, string $action, string $modelType, int $modelId, array $changes)"
+      ]
+    }
+  },
+  "controllers": {
+    "authentication": {
+      "RegisterController": {
+        "file": "app/Http/Controllers/Api/Auth/RegisterController.php",
+        "endpoints": [
+          { "route": "POST /api/auth/register-code", "method": "requestCode", "description": "Send OTP to user email" },
+          { "route": "POST /api/auth/register", "method": "register", "description": "Verify OTP and create account" },
+          { "route": "POST /api/auth/resend-code", "method": "resendCode", "description": "Resend expired OTP" }
+        ]
+      },
+      "LoginController": {
+        "file": "app/Http/Controllers/Api/Auth/LoginController.php",
+        "endpoints": [
+          { "route": "POST /api/auth/login", "method": "login", "description": "Authenticate user and return tokens" }
+        ]
+      },
+      "TokenController": {
+        "file": "app/Http/Controllers/Api/Auth/TokenController.php",
+        "endpoints": [
+          { "route": "POST /api/auth/refresh-token", "method": "refreshToken", "description": "Get new access token" },
+          { "route": "POST /api/auth/validate", "method": "validateToken", "description": "Validate access token" },
+          { "route": "POST /api/auth/logout", "method": "logout", "description": "Logout from current device" },
+          { "route": "POST /api/auth/logout-all", "method": "logoutAll", "description": "Logout from all devices" },
+          { "route": "GET /api/auth/sessions", "method": "getSessions", "description": "Get active sessions" },
+          { "route": "GET /api/auth/token-stats", "method": "getTokenStats", "description": "Get token statistics" }
+        ]
+      },
+      "ProfileController": {
+        "file": "app/Http/Controllers/Api/Auth/ProfileController.php",
+        "endpoints": [
+          { "route": "GET /api/auth/me", "method": "me", "description": "Get current user profile" },
+          { "route": "PUT /api/auth/profile", "method": "updateProfile", "description": "Update user profile" },
+          { "route": "PUT /api/auth/password", "method": "changePassword", "description": "Change password" }
+        ]
+      }
+    },
+    "marketplace": {
+      "ItemController": {
+        "file": "app/Http/Controllers/Api/ItemController.php",
+        "endpoints": [
+          { "route": "GET /api/items", "method": "index", "description": "List all items (public)", "auth": false },
+          { "route": "GET /api/items/{id}", "method": "show", "description": "Get item details (public)", "auth": false },
+          { "route": "POST /api/items", "method": "store", "description": "Create new item listing", "auth": true },
+          { "route": "GET /api/items/my-listings", "method": "myListings", "description": "Get user's listings", "auth": true },
+          { "route": "PUT /api/items/{id}", "method": "update", "description": "Update item", "auth": true },
+          { "route": "DELETE /api/items/{id}", "method": "destroy", "description": "Delete item", "auth": true },
+          { "route": "POST /api/items/{id}/toggle-status", "method": "toggleStatus", "description": "Toggle item status", "auth": true }
+        ]
+      },
+      "FavoriteController": {
+        "file": "app/Http/Controllers/Api/FavoriteController.php",
+        "endpoints": [
+          { "route": "GET /api/favorites", "method": "index", "description": "Get user's favorites", "auth": true },
+          { "route": "POST /api/favorites/{itemId}", "method": "store", "description": "Add item to favorites", "auth": true },
+          { "route": "DELETE /api/favorites/{itemId}", "method": "destroy", "description": "Remove from favorites", "auth": true }
+        ]
+      },
+      "OrderController": {
+        "file": "app/Http/Controllers/Api/OrderController.php",
+        "endpoints": [
+          { "route": "POST /api/orders", "method": "store", "description": "Create new order", "auth": true },
+          { "route": "GET /api/orders", "method": "index", "description": "Get buyer's orders", "auth": true },
+          { "route": "GET /api/orders/as-seller", "method": "asSeller", "description": "Get seller's orders", "auth": true },
+          { "route": "GET /api/orders/{id}", "method": "show", "description": "Get order details", "auth": true },
+          { "route": "PUT /api/orders/{id}/cancel", "method": "cancel", "description": "Cancel order", "auth": true },
+          { "route": "POST /api/orders/{id}/confirm", "method": "confirm", "description": "Seller confirms order", "auth": true }
+        ]
+      },
+      "AddressController": {
+        "file": "app/Http/Controllers/Api/AddressController.php",
+        "endpoints": [
+          { "route": "GET /api/addresses", "method": "index", "description": "Get user addresses", "auth": true },
+          { "route": "POST /api/addresses", "method": "store", "description": "Add new address", "auth": true },
+          { "route": "PUT /api/addresses/{id}", "method": "update", "description": "Update address", "auth": true },
+          { "route": "DELETE /api/addresses/{id}", "method": "destroy", "description": "Delete address", "auth": true }
+        ]
+      }
+    },
+    "delivery": {
+      "DeliveryController": {
+        "file": "app/Http/Controllers/Api/DeliveryController.php",
+        "endpoints": [
+          { "route": "GET /api/deliveries", "method": "index", "description": "Get all deliveries (admin)", "auth": true },
+          { "route": "GET /api/deliveries/{id}", "method": "show", "description": "Get delivery details", "auth": true },
+          { "route": "POST /api/deliveries/{id}/assign-driver", "method": "assignDriver", "description": "Assign driver (admin)", "auth": true },
+          { "route": "POST /api/deliveries/{id}/pickup", "method": "markAsPickedUp", "description": "Mark as picked up", "auth": true },
+          { "route": "POST /api/deliveries/{id}/deliver", "method": "markAsDelivered", "description": "Mark as delivered", "auth": true },
+          { "route": "POST /api/deliveries/{id}/cancel", "method": "cancelDelivery", "description": "Cancel delivery", "auth": true },
+          { "route": "POST /api/deliveries/{id}/fail", "method": "markAsFailed", "description": "Mark as failed", "auth": true }
+        ]
+      },
+      "DriverApplicationController": {
+        "file": "app/Http/Controllers/Api/DriverApplicationController.php",
+        "endpoints": [
+          { "route": "POST /api/driver-applications", "method": "store", "description": "Submit driver application", "auth": true },
+          { "route": "GET /api/driver-applications/my-application", "method": "myApplication", "description": "Get my application", "auth": true },
+          { "route": "GET /api/driver-applications/eligibility", "method": "checkEligibility", "description": "Check eligibility", "auth": true }
+        ]
+      },
+      "DriverDashboardController": {
+        "file": "app/Http/Controllers/Api/DriverDashboardController.php",
+        "endpoints": [
+          { "route": "GET /api/driver/dashboard", "method": "dashboard", "description": "Driver dashboard stats", "auth": true, "middleware": "verified_driver" },
+          { "route": "GET /api/driver/deliveries", "method": "myDeliveries", "description": "My deliveries", "auth": true, "middleware": "verified_driver" },
+          { "route": "GET /api/driver/available-deliveries", "method": "availableDeliveries", "description": "Available deliveries", "auth": true, "middleware": "verified_driver" },
+          { "route": "POST /api/driver/accept-delivery/{id}", "method": "acceptDelivery", "description": "Accept delivery", "auth": true, "middleware": "verified_driver" },
+          { "route": "GET /api/driver/earnings", "method": "earnings", "description": "Driver earnings", "auth": true, "middleware": "verified_driver" }
+        ]
+      },
+      "GoogleMapsController": {
+        "file": "app/Http/Controllers/Api/GoogleMapsController.php",
+        "endpoints": [
+          { "route": "POST /api/maps/calculate-delivery-fee", "method": "calculateDeliveryFee", "description": "Calculate delivery fee", "auth": true },
+          { "route": "POST /api/maps/validate-coordinates", "method": "validateCoordinates", "description": "Validate GPS coordinates", "auth": true },
+          { "route": "GET /api/maps/service-areas", "method": "serviceAreas", "description": "Get service areas", "auth": true },
+          { "route": "POST /api/calculate-delivery-fee", "method": "calculateDeliveryFee", "description": "Calculate fee (direct)", "auth": true }
+        ]
+      }
+    },
+    "charity": {
+      "CharityController": {
+        "file": "app/Http/Controllers/Api/CharityController.php",
+        "endpoints": [
+          { "route": "GET /api/charity/dashboard", "method": "dashboard", "description": "Charity dashboard", "auth": true, "middleware": "role:charity" },
+          { "route": "GET /api/charity/available-donations", "method": "availableDonations", "description": "Browse donations", "auth": true, "middleware": "role:charity" },
+          { "route": "POST /api/charity/accept-donation/{itemId}", "method": "acceptDonation", "description": "Accept donation", "auth": true, "middleware": "role:charity" },
+          { "route": "GET /api/charity/my-donations", "method": "myDonations", "description": "My donations", "auth": true, "middleware": "role:charity" },
+          { "route": "POST /api/charity/mark-distributed/{orderId}", "method": "markDistributed", "description": "Mark as distributed", "auth": true, "middleware": "role:charity" },
+          { "route": "GET /api/charity/impact-stats", "method": "impactStats", "description": "Impact statistics", "auth": true, "middleware": "role:charity" },
+          { "route": "GET /api/charity/recommended-donations", "method": "recommendedDonations", "description": "Recommended donations", "auth": true, "middleware": "role:charity" }
+        ]
+      }
+    },
+    "admin": {
+      "AdminController": {
+        "file": "app/Http/Controllers/Admin/AdminController.php",
+        "endpoints": [
+          { "route": "GET /api/admin/stats", "method": "getStats", "description": "Platform statistics (public)", "auth": false },
+          { "route": "POST /api/admin/charity/create", "method": "createCharity", "description": "Create charity account", "auth": true, "middleware": "admin" },
+          { "route": "POST /api/admin/create-user", "method": "createUser", "description": "Create user account", "auth": true, "middleware": "admin" },
+          { "route": "GET /api/admin/charities", "method": "getCharities", "description": "Get all charities", "auth": true, "middleware": "admin" }
+        ]
+      },
+      "AdminDriverController": {
+        "file": "app/Http/Controllers/Admin/AdminDriverController.php",
+        "endpoints": [
+          { "route": "GET /api/admin/driver-applications", "method": "applications", "description": "List applications", "auth": true, "middleware": "admin" },
+          { "route": "GET /api/admin/driver-applications/stats", "method": "applicationStats", "description": "Application stats", "auth": true, "middleware": "admin" },
+          { "route": "GET /api/admin/driver-applications/{id}", "method": "applicationDetails", "description": "Application details", "auth": true, "middleware": "admin" },
+          { "route": "POST /api/admin/driver-applications/{id}/approve", "method": "approveApplication", "description": "Approve driver", "auth": true, "middleware": "admin" },
+          { "route": "POST /api/admin/driver-applications/{id}/reject", "method": "rejectApplication", "description": "Reject driver", "auth": true, "middleware": "admin" },
+          { "route": "POST /api/admin/driver-applications/{id}/set-under-review", "method": "setUnderReview", "description": "Set under review", "auth": true, "middleware": "admin" },
+          { "route": "GET /api/admin/drivers", "method": "drivers", "description": "List all drivers", "auth": true, "middleware": "admin" }
+        ]
+      },
+      "UserManagementController": {
+        "file": "app/Http/Controllers/Api/UserManagementController.php",
+        "endpoints": [
+          { "route": "GET /api/admin/users", "method": "getAllUsers", "description": "Get all users (paginated)", "auth": true, "middleware": "admin" },
+          { "route": "DELETE /api/admin/users/{userId}", "method": "deleteUserByAdmin", "description": "Delete user account", "auth": true, "middleware": "admin" },
+          { "route": "DELETE /api/user/delete-account", "method": "deleteSelfAccount", "description": "Delete own account", "auth": true }
+        ]
+      },
+      "AdminNotificationController": {
+        "file": "app/Http/Controllers/Admin/AdminNotificationController.php",
+        "endpoints": [
+          { "route": "GET /api/admin/notifications", "method": "index", "description": "Get admin notifications", "auth": true, "middleware": "admin" },
+          { "route": "GET /api/admin/notifications/unread-count", "method": "unreadCount", "description": "Unread count", "auth": true, "middleware": "admin" },
+          { "route": "POST /api/admin/notifications/{id}/read", "method": "markAsRead", "description": "Mark as read", "auth": true, "middleware": "admin" },
+          { "route": "POST /api/admin/notifications/read-all", "method": "markAllAsRead", "description": "Mark all as read", "auth": true, "middleware": "admin" },
+          { "route": "DELETE /api/admin/notifications/{id}", "method": "destroy", "description": "Delete notification", "auth": true, "middleware": "admin" },
+          { "route": "DELETE /api/admin/notifications/clear-all", "method": "clearAll", "description": "Clear all notifications", "auth": true, "middleware": "admin" },
+          { "route": "POST /api/admin/notifications/test", "method": "storeTest", "description": "Create test notification", "auth": true, "middleware": "admin" }
+        ]
+      }
+    },
+    "notifications": {
+      "NotificationController": {
+        "file": "app/Http/Controllers/Api/NotificationController.php",
+        "endpoints": [
+          { "route": "GET /api/notifications", "method": "index", "description": "Get user notifications", "auth": true },
+          { "route": "GET /api/notifications/unread-count", "method": "unreadCount", "description": "Unread count", "auth": true },
+          { "route": "POST /api/notifications/{id}/mark-read", "method": "markAsRead", "description": "Mark as read", "auth": true },
+          { "route": "POST /api/notifications/mark-all-read", "method": "markAllAsRead", "description": "Mark all as read", "auth": true },
+          { "route": "DELETE /api/notifications/{id}", "method": "destroy", "description": "Delete notification", "auth": true },
+          { "route": "DELETE /api/notifications/clear-all", "method": "clearAll", "description": "Clear all", "auth": true },
+          { "route": "POST /api/notifications/test", "method": "storeTest", "description": "Test notification", "auth": true }
+        ]
+      }
+    }
+  },
+  "middleware": {
+    "Authenticate": {
+      "file": "app/Http/Middleware/Authenticate.php",
+      "description": "Laravel's default authentication middleware - ensures user is logged in"
+    },
+    "AdminMiddleware": {
+      "file": "app/Http/Middleware/AdminMiddleware.php",
+      "description": "Restricts access to admin users only",
+      "check": "user->hasRole('admin')"
+    },
+    "CheckAdminRole": {
+      "file": "app/Http/Middleware/CheckAdminRole.php",
+      "description": "Alternative admin check middleware"
+    },
+    "VerifiedDriver": {
+      "file": "app/Http/Middleware/VerifiedDriver.php",
+      "description": "Restricts access to verified drivers only",
+      "check": "user->is_driver && user->driver_verified"
+    },
+    "ItemOwnership": {
+      "file": "app/Http/Middleware/ItemOwnership.php",
+      "description": "Ensures user owns the item they're trying to modify"
+    }
+  },
+  "features": {
+    "authentication": {
+      "description": "Complete JWT-based authentication system with refresh tokens",
+      "implemented_features": [
+        "Email-based registration with OTP verification",
+        "6-digit OTP sent via email (5-minute expiration)",
+        "Secure password hashing (bcrypt)",
+        "JWT access tokens (1-hour expiration)",
+        "Refresh token rotation (30-day expiration)",
+        "Multi-device session management",
+        "Token revocation and logout",
+        "Logout from all devices",
+        "Login attempt tracking",
+        "Account lockout after 5 failed attempts (15-minute lock)",
+        "Profile management (name, bio, profile picture)",
+        "Password change functionality"
+      ]
+    },
+    "marketplace": {
+      "description": "Core marketplace functionality for buying and selling items",
+      "implemented_features": [
+        "Item listing with multiple images (Firebase Storage)",
+        "7 categories (tops, bottoms, dresses, outerwear, shoes, accessories, other)",
+        "Size variants (XS to XXXL + One Size)",
+        "Condition grading (new, like_new, good, fair)",
+        "Gender targeting (male, female, unisex)",
+        "Sale items with pricing",
+        "Donation items (free for charities)",
+        "Item status management (available, pending, sold, donated, cancelled)",
+        "View counter for popularity tracking",
+        "Search and filtering by category, size, condition, gender",
+        "Favorite items functionality",
+        "User's listings management",
+        "Item soft delete capability"
+      ]
+    },
+    "orders": {
+      "description": "Order processing and transaction management",
+      "implemented_features": [
+        "Order placement for items",
+        "Donation acceptance by charities",
+        "Cash on Delivery (COD) payment method",
+        "Order status workflow (pending → confirmed → in_delivery → delivered → completed)",
+        "Seller order confirmation",
+        "Order cancellation with reason",
+        "Buyer's orders history",
+        "Seller's orders history",
+        "Automatic delivery fee calculation",
+        "Order number generation for reference"
+      ]
+    },
+    "delivery": {
+      "description": "Complete delivery logistics system",
+      "implemented_features": [
+        "Google Maps API integration for distance calculation",
+        "Automatic delivery fee calculation based on distance",
+        "Driver assignment workflow",
+        "Delivery status tracking (pending, assigned, picked_up, in_transit, delivered, failed)",
+        "Pickup and delivery GPS coordinates",
+        "Driver earnings calculation (75% of delivery fee)",
+        "Platform fee calculation (25% of delivery fee)",
+        "Delivery cancellation support",
+        "Delivery notes and instructions",
+        "Failure reason tracking"
+      ]
+    },
+    "driver_system": {
+      "description": "Driver application and verification system",
+      "implemented_features": [
+        "Driver application submission",
+        "Document upload (ID, driving license, vehicle registration)",
+        "Vehicle type specification (car, motorcycle, bicycle)",
+        "Application status workflow (pending → under_review → approved/rejected)",
+        "Admin review and approval/rejection",
+        "Driver verification badge",
+        "Driver dashboard with statistics",
+        "Available deliveries viewing",
+        "Delivery acceptance workflow",
+        "Driver earnings tracking",
+        "Active deliveries management",
+        "Completed deliveries history"
+      ]
+    },
+    "charity_system": {
+      "description": "Charity organization features for donation management",
+      "implemented_features": [
+        "Charity account creation (by admin)",
+        "Organization details (name, description, registration number, tax ID)",
+        "Browse available donations",
+        "Accept donation items",
+        "Track received donations",
+        "Mark donations as distributed",
+        "Record people helped per donation",
+        "Distribution notes and tracking",
+        "Impact statistics dashboard",
+        "Recommended donations based on location"
+      ]
+    },
+    "notifications": {
+      "description": "Real-time notification system for user engagement",
+      "implemented_features": [
+        "10 notification types (order_placed, order_confirmed, order_delivered, item_sold, donation_accepted, delivery_assigned, driver_approved, driver_rejected, donation_confirmed, delivery_completed)",
+        "Unread notification count",
+        "Mark notifications as read",
+        "Mark all as read",
+        "Delete individual notifications",
+        "Clear all notifications",
+        "Admin-specific notifications",
+        "Test notification creation",
+        "Notification icons and colors",
+        "Timestamp and time-ago display"
+      ]
+    },
+    "address_management": {
+      "description": "User delivery address management",
+      "implemented_features": [
+        "Multiple addresses per user",
+        "Address labels (Home, Work, custom)",
+        "Default address selection",
+        "GPS coordinates storage",
+        "Full address details (line1, line2, city, state, postal_code, country)",
+        "Recipient name and phone",
+        "Address CRUD operations"
+      ]
+    },
+    "admin_features": {
+      "description": "Administrative capabilities for platform management",
+      "implemented_features": [
+        "Platform statistics dashboard",
+        "User management (view all, delete)",
+        "Charity account creation",
+        "Manual user account creation",
+        "Driver application management",
+        "Driver approval/rejection workflow",
+        "Admin notifications",
+        "Delivery statistics",
+        "Donation statistics",
+        "Admin action audit trail (admin_logs)",
+        "IP and user agent tracking"
+      ]
+    },
+    "maps_integration": {
+      "description": "Google Maps API for location services",
+      "implemented_features": [
+        "Distance calculation between coordinates",
+        "Delivery fee calculation based on distance",
+        "GPS coordinate validation",
+        "Service areas definition",
+        "Pickup and delivery location tracking",
+        "Address geocoding"
+      ]
+    },
+    "file_storage": {
+      "description": "Firebase Storage for image management",
+      "implemented_features": [
+        "Profile picture upload",
+        "Item image upload (multiple images)",
+        "Document upload for driver applications (ID, license, registration)",
+        "Image URL generation",
+        "Image deletion",
+        "Firebase Storage integration"
+      ]
+    }
+  },
+  "security_features": {
+    "authentication": [
+      "JWT (JSON Web Tokens) for stateless authentication",
+      "Refresh token rotation for enhanced security",
+      "Bcrypt password hashing",
+      "Email verification via OTP",
+      "OTP expiration (5 minutes)",
+      "OTP attempt limiting (5 max attempts)",
+      "Login attempt tracking",
+      "Account lockout after 5 failed login attempts (15-minute lock)",
+      "Session management across multiple devices"
+    ],
+    "authorization": [
+      "Role-Based Access Control (RBAC) via Spatie Laravel Permission",
+      "Role middleware (admin, charity, driver)",
+      "Permission middleware",
+      "Route protection",
+      "Item ownership verification",
+      "Driver verification check"
+    ],
+    "data_protection": [
+      "SQL injection protection (Eloquent ORM)",
+      "XSS protection (Laravel escaping)",
+      "CSRF protection (VerifyCsrfToken middleware)",
+      "Request validation",
+      "File upload validation",
+      "Foreign key constraints",
+      "Soft delete for data recovery"
+    ],
+    "api_security": [
+      "API token authentication",
+      "Rate limiting ready",
+      "CORS configuration ready",
+      "HTTPS enforcement recommended",
+      "Input sanitization"
+    ],
+    "audit": [
+      "Admin action logging (admin_logs table)",
+      "IP address tracking",
+      "User agent tracking",
+      "Timestamp tracking",
+      "Change history (JSON format in admin_logs)"
+    ]
+  },
+  "notification_types": {
+    "order_placed": {
+      "description": "When a buyer places an order",
+      "recipient": "seller",
+      "icon": "shopping-bag",
+      "color": "green"
+    },
+    "order_confirmed": {
+      "description": "When seller confirms an order",
+      "recipient": "buyer",
+      "icon": "check-circle",
+      "color": "green"
+    },
+    "order_delivered": {
+      "description": "When order is delivered",
+      "recipient": "buyer, seller",
+      "icon": "truck",
+      "color": "blue"
+    },
+    "item_sold": {
+      "description": "When seller's item is sold",
+      "recipient": "seller",
+      "icon": "dollar-sign",
+      "color": "blue"
+    },
+    "donation_accepted": {
+      "description": "When charity accepts a donation",
+      "recipient": "seller (donor)",
+      "icon": "heart",
+      "color": "purple"
+    },
+    "delivery_assigned": {
+      "description": "When driver is assigned to delivery",
+      "recipient": "driver",
+      "icon": "user-check",
+      "color": "emerald"
+    },
+    "driver_approved": {
+      "description": "When driver application is approved",
+      "recipient": "driver",
+      "icon": "shield-check",
+      "color": "emerald"
+    },
+    "driver_rejected": {
+      "description": "When driver application is rejected",
+      "recipient": "driver",
+      "icon": "shield-x",
+      "color": "red"
+    },
+    "donation_confirmed": {
+      "description": "When donation is confirmed by charity",
+      "recipient": "charity",
+      "icon": "heart",
+      "color": "purple"
+    },
+    "delivery_completed": {
+      "description": "When delivery is completed",
+      "recipient": "driver, buyer, seller",
+      "icon": "check-circle",
+      "color": "green"
+    },
+    "general": {
+      "description": "General notifications",
+      "icon": "bell",
+      "color": "gray"
+    }
+  },
+  "item_categories": [
+    "tops - Shirts, blouses, t-shirts, sweaters",
+    "bottoms - Pants, jeans, skirts, shorts",
+    "dresses - All types of dresses",
+    "outerwear - Jackets, coats, blazers",
+    "shoes - Sneakers, boots, formal shoes",
+    "accessories - Bags, jewelry, scarves, belts",
+    "other - Items that don't fit other categories"
+  ],
+  "item_conditions": [
+    "new - With tags, never worn",
+    "like_new - No visible wear, like new condition",
+    "good - Minor signs of wear, in good condition",
+    "fair - Noticeable wear but still usable"
+  ],
+  "delivery_fee_structure": {
+    "base_fee": "$2.00 minimum",
+    "per_km_rate": "$0.50 per kilometer",
+    "calculation": "Base fee + (distance in km × per_km_rate)",
+    "example": "5km distance = $2.00 + (5 × $0.50) = $4.50",
+    "driver_share": "75% of total fee",
+    "platform_share": "25% of total fee"
+  },
+  "user_roles": {
+    "user": {
+      "description": "Regular user - can buy and sell items",
+      "capabilities": [
+        "Browse items",
+        "Create listings",
+        "Purchase items",
+        "Sell items",
+        "Manage addresses",
+        "Receive notifications",
+        "Apply to become driver"
+      ]
+    },
+    "admin": {
+      "description": "Platform administrator",
+      "capabilities": [
+        "All user capabilities",
+        "Create charity accounts",
+        "Create user accounts",
+        "Manage users (view, delete)",
+        "Approve/reject driver applications",
+        "View all applications",
+        "Access platform statistics",
+        "View delivery and donation stats",
+        "Receive admin notifications"
+      ]
+    },
+    "charity": {
+      "description": "Charity organization account",
+      "capabilities": [
+        "All user capabilities",
+        "Browse donation items",
+        "Accept donations",
+        "Track donations",
+        "Mark donations as distributed",
+        "Record impact metrics",
+        "View recommended donations"
+      ]
+    },
+    "driver": {
+      "description": "Verified delivery driver (requires verification)",
+      "capabilities": [
+        "All user capabilities",
+        "View available deliveries",
+        "Accept delivery jobs",
+        "Update delivery status",
+        "View earnings",
+        "Access driver dashboard",
+        "Manage active deliveries"
+      ]
+    }
+  },
+  "development_information": {
+    "local_development": {
+      "server_start": "php artisan serve",
+      "default_port": "http://localhost:8000",
+      "api_prefix": "/api",
+      "documentation": "/api/documentation"
+    },
+    "environment_variables": {
+      "database": [
+        "DB_CONNECTION",
+        "DB_HOST",
+        "DB_PORT",
+        "DB_DATABASE",
+        "DB_USERNAME",
+        "DB_PASSWORD"
+      ],
+      "jwt": [
+        "JWT_SECRET",
+        "JWT_EXPIRES_IN",
+        "REFRESH_TOKEN_EXPIRES_DAYS"
+      ],
+      "firebase": [
+        "FIREBASE_PROJECT_ID",
+        "FIREBASE_CLIENT_EMAIL",
+        "FIREBASE_PRIVATE_KEY",
+        "FIREBASE_DATABASE_URL",
+        "FIREBASE_STORAGE_BUCKET"
+      ],
+      "google_maps": [
+        "GOOGLE_MAPS_API_KEY"
+      ],
+      "mail": [
+        "MAIL_HOST",
+        "MAIL_PORT",
+        "MAIL_USERNAME",
+        "MAIL_PASSWORD",
+        "MAIL_ENCRYPTION"
+      ]
+    },
+    "key_artisan_commands": {
+      "migration": "php artisan migrate - Run database migrations",
+      "fresh_migration": "php artisan migrate:fresh - Drop all tables and re-migrate",
+      "seed": "php artisan db:seed - Seed database",
+      "jwt_secret": "php artisan jwt:secret - Generate JWT secret",
+      "storage_link": "php artisan storage:link - Create storage symbolic link",
+      "cache_clear": "php artisan cache:clear - Clear application cache",
+      "config_cache": "php artisan config:cache - Cache configuration",
+      "route_cache": "php artisan route:cache - Cache routes",
+      "swagger_generate": "php artisan l5-swagger:generate - Generate Swagger documentation"
+    }
+  },
+  "api_documentation": {
+    "tool": "L5-Swagger (OpenAPI/Swagger)",
+    "access_url": "/api/documentation",
+    "format": "OpenAPI 3.0",
+    "features": [
+      "Interactive API testing",
+      "Request/response examples",
+      "Authentication header support",
+      "Endpoint descriptions",
+      "Parameter documentation",
+      "Response schemas"
+    ]
+  },
+  "testing_capabilities": {
+    "framework": "PHPUnit",
+    "test_types": [
+      "Unit tests - Model and service layer testing",
+      "Feature tests - API endpoint testing",
+      "Integration tests - Complete workflow testing"
+    ],
+    "coverage_areas": [
+      "Authentication flows",
+      "Order processing",
+      "Delivery workflow",
+      "Driver application process",
+      "Donation management",
+      "Notification system"
+    ]
+  },
+  "project_status": {
+    "overall_status": "COMPLETED",
+    "completion_percentage": "100%",
+    "development_phases": {
+      "phase_1": {
+        "name": "Foundation & Setup",
+        "status": "COMPLETED",
+        "duration": "Week 1",
+        "deliverables": [
+          "Database schema design",
+          "Authentication tables",
+          "User model with JWT",
+          "Email verification system",
+          "Refresh token management"
+        ]
+      },
+      "phase_2": {
+        "name": "Authentication System",
+        "status": "COMPLETED",
+        "duration": "Week 1-2",
+        "deliverables": [
+          "User registration with OTP",
+          "Login system",
+          "Token refresh mechanism",
+          "Profile management",
+          "Password management"
+        ]
+      },
+      "phase_3": {
+        "name": "Core Marketplace",
+        "status": "COMPLETED",
+        "duration": "Week 2-3",
+        "deliverables": [
+          "Item listing CRUD",
+          "Image upload (Firebase)",
+          "Favorites system",
+          "Order processing",
+          "Address management"
+        ]
+      },
+      "phase_4": {
+        "name": "Delivery & Driver System",
+        "status": "COMPLETED",
+        "duration": "Week 3",
+        "deliverables": [
+          "Google Maps integration",
+          "Delivery workflow",
+          "Driver applications",
+          "Driver dashboard",
+          "Earnings tracking"
+        ]
+      },
+      "phase_5": {
+        "name": "Charity System",
+        "status": "COMPLETED",
+        "duration": "Week 3-4",
+        "deliverables": [
+          "Charity accounts",
+          "Donation acceptance",
+          "Distribution tracking",
+          "Impact statistics",
+          "Recommended donations"
+        ]
+      },
+      "phase_6": {
+        "name": "Admin & Notifications",
+        "status": "COMPLETED",
+        "duration": "Week 4",
+        "deliverables": [
+          "Admin dashboard",
+          "User management",
+          "Driver application management",
+          "Notification system",
+          "Platform statistics",
+          "Audit logging"
+        ]
+      }
+    },
+    "total_development_time": "4 weeks",
+    "total_migrations": 9,
+    "total_models": 12,
+    "total_controllers": 20,
+    "total_services": 14,
+    "total_api_endpoints": "100+",
+    "total_middleware": 6,
+    "total_notification_types": 10,
+    "database_tables": 24
+  },
+  "environment_impact_features": {
+    "sustainability_tracking": [
+      "CO2 savings estimation (co2_saved_kg in impact_stats)",
+      "Items diverted from landfill",
+      "Donation impact tracking",
+      "People helped by donations"
+    ],
+    "circular_economy": [
+      "Item reuse and resale",
+      "Donation system for charities",
+      "Extended clothing lifecycle",
+      "Reduced textile waste"
+    ]
+  },
+  "future_enhancement_opportunities": {
+    "payment_integration": [
+      "Stripe/PayPal integration for online payments",
+      "Payment gateway webhooks",
+      "Refund processing"
+    ],
+    "messaging": [
+      "In-app messaging between buyer and seller",
+      "Delivery driver chat",
+      "Negotiation system"
+    ],
+    "ratings": [
+      "User rating system",
+      "Item reviews",
+      "Driver ratings"
+    ],
+    "analytics": [
+      "Advanced analytics dashboard",
+      "User behavior tracking",
+      "Sales insights"
+    ],
+    "mobile": [
+      "Mobile app API optimization",
+      "Push notifications",
+      "Offline mode support"
+    ]
+  },
+  "academic_project_details": {
+    "type": "Final Year Project (FYP)",
+    "field": "Computer Science",
+    "focus_area": "Sustainable Technology",
+    "duration": "2 months (including frontend)",
+    "presentation_ready": true,
+    "documentation_complete": true,
+    "report_sections": [
+      "Introduction & Problem Statement",
+      "System Architecture",
+      "Database Design",
+      "API Documentation",
+      "Implementation Details",
+      "Security Considerations",
+      "Testing & Validation",
+      "Environmental Impact",
+      "Future Work",
+      "Conclusion"
+    ]
+  },
+  "deployment_considerations": {
+    "production_requirements": [
+      "PHP 8.2+",
+      "PostgreSQL 12+",
+      "SSL Certificate (HTTPS required)",
+      "Firebase project with Storage enabled",
+      "Google Maps API key",
+      "SMTP server for emails",
+      "Queue worker for background jobs",
+      "Redis for caching (recommended)",
+      "Load balancer for scalability"
+    ],
+    "security_recommendations": [
+      "Use HTTPS in production",
+      "Set strong JWT secret",
+      "Configure CORS properly",
+      "Enable rate limiting",
+      "Regular security audits",
+      "Keep dependencies updated",
+      "Environment variables protection",
+      "Database backups",
+      "API key rotation"
+    ]
+  }
+}
